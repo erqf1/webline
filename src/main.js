@@ -418,8 +418,13 @@ function registerIpc() {
 /** Sucht kurz nach dem Start und dann stündlich nach einer neuen Version (GitHub-Releases),
  *  lädt sie im Hintergrund und fragt, ob jetzt neu gestartet werden soll. */
 function setupAutoUpdate() {
-  // Nur installierte Versionen: die portable .exe, tar.gz und die unsignierte Mac-App können sich nicht selbst ersetzen
-  if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR || process.platform === 'darwin') return;
+  if (!app.isPackaged) return;
+  // Die portable .exe, tar.gz und die unsignierte Mac-App können sich nicht selbst ersetzen:
+  // dort nur nachsehen und bei einer neuen Version zur Download-Seite schicken
+  if (process.env.PORTABLE_EXECUTABLE_DIR || process.platform === 'darwin' || isTarGz()) {
+    setupUpdateNotice();
+    return;
+  }
   let autoUpdater;
   try {
     ({ autoUpdater } = require('electron-updater'));
@@ -473,6 +478,62 @@ function setupAutoUpdate() {
   });
   setTimeout(check, 5000);
   setInterval(check, 60 * 60 * 1000);
+}
+
+/** Linux ohne Paketverwaltung (entpacktes tar.gz): electron-updater kann dort nichts ersetzen */
+function isTarGz() {
+  if (process.platform !== 'linux') return false;
+  const exe = app.getPath('exe');
+  return !exe.startsWith('/usr/') && !exe.startsWith('/opt/');
+}
+
+/** Neue Version auf GitHub? Dann fragen, ob die Download-Seite aufgehen soll ("Später" = zwei Wochen Ruhe pro Version) */
+function setupUpdateNotice() {
+  const { net } = require('electron');
+  const laterFile = path.join(app.getPath('userData'), 'update.json');
+  const newer = (a, b) => {
+    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+    return false;
+  };
+  let asked = false;
+  const check = async () => {
+    if (asked) return;
+    try {
+      const res = await net.fetch('https://api.github.com/repos/erqf1/webcase/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Webcase' },
+      });
+      if (!res.ok) return;
+      const rel = await res.json();
+      const version = String(rel.tag_name || '').replace(/^v/, '');
+      if (!version || !newer(version, app.getVersion())) return;
+      let later = {};
+      try {
+        later = JSON.parse(fs.readFileSync(laterFile, 'utf8'));
+      } catch {
+        // keine Datei -> fragen
+      }
+      if (later.version === version && Date.now() < later.until) return;
+      asked = true;
+      const parent = launcherWin && !launcherWin.isDestroyed() ? launcherWin : BrowserWindow.getFocusedWindow();
+      const options = {
+        type: 'info',
+        buttons: [t('openDownloadPage'), t('later')],
+        defaultId: 0,
+        cancelId: 1,
+        title: t('updateTitle'),
+        message: t('updateAvailable', { version }),
+        detail: t('updateManualDetail'),
+      };
+      const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+      if (response === 0) shell.openExternal(rel.html_url || 'https://github.com/erqf1/webcase/releases/latest');
+      else fs.writeFileSync(laterFile, JSON.stringify({ version, until: Date.now() + 14 * 24 * 3600 * 1000 }));
+    } catch {
+      // offline - später nochmal
+    }
+  };
+  setTimeout(check, 5000);
+  setInterval(check, 6 * 60 * 60 * 1000);
 }
 
 // ---------------------------------------------------------------- Start
