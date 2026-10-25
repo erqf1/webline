@@ -4,14 +4,16 @@ const fs = require('fs');
 const path = require('path');
 const { SHORTCUTS, LANGUAGES } = require('./i18n');
 
-// Sprache und eigene Tastenkürzel (userData/settings.json). Englisch ist der Standard.
+// Sprache, Stil und eigene Tastenkürzel (userData/settings.json). Englisch und Standard-Stil sind die Vorgabe.
+const STYLES = ['standard', 'minimal'];
 class Settings {
   constructor(file) {
     this.file = file;
-    this.data = { language: 'en', shortcuts: {} };
+    this.data = { language: 'en', style: 'standard', shortcuts: {} };
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (LANGUAGES[raw.language]) this.data.language = raw.language;
+      if (STYLES.includes(raw.style)) this.data.style = raw.style;
       if (raw.shortcuts && typeof raw.shortcuts === 'object') this.data.shortcuts = raw.shortcuts;
     } catch {
       // keine Datei / kaputt -> Standard
@@ -20,6 +22,10 @@ class Settings {
 
   get language() {
     return this.data.language;
+  }
+
+  get style() {
+    return this.data.style;
   }
 
   /** Wirksame Kürzel: eigene Belegung (auch leer = keine Taste) oder Standard */
@@ -31,6 +37,7 @@ class Settings {
 
   set(patch) {
     if (patch.language && LANGUAGES[patch.language]) this.data.language = patch.language;
+    if (STYLES.includes(patch.style)) this.data.style = patch.style;
     if (patch.shortcuts && typeof patch.shortcuts === 'object') {
       for (const s of SHORTCUTS) {
         if (!(s.id in patch.shortcuts)) continue;

@@ -279,7 +279,7 @@ function programShortcut(input) {
 }
 
 function settingsState() {
-  return { language: settings.language, shortcuts: settings.shortcuts(), platform: process.platform };
+  return { language: settings.language, style: settings.style, shortcuts: settings.shortcuts(), platform: process.platform };
 }
 
 // ---------------------------------------------------------------- Launcher-Fenster

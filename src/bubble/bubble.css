@@ -1,35 +1,34 @@
-/* wie YouTube-Menüs: dunkles Grau, keine Ränder, Rot für den Fortschritt */
 :root {
   color-scheme: dark;
-  --panel: #282828;
-  --row-hover: #3f3f3f;
-  --line: #3f3f3f;
-  --text: #f1f1f1;
-  --muted: #aaaaaa;
-  --accent: #3ea6ff;
-  --accent-strong: #ff0033;
-  --track: #4d4d4d;
-  --danger: #ff4e45;
-  --ok: #2ba640;
-  --warn: #f9ab00;
-  --shadow: 0 4px 32px rgb(0 0 0 / 0.5);
+  --panel: #171a23;
+  --row-hover: #1f2331;
+  --line: #2a2f40;
+  --text: #e8eaf2;
+  --muted: #8b91a7;
+  --accent: #7c83ff;
+  --accent-strong: #6366f1;
+  --track: #2a2f40;
+  --danger: #ff7a7a;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --shadow: 0 8px 28px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
     --panel: #ffffff;
-    --row-hover: #f2f2f2;
-    --line: #e5e5e5;
-    --text: #0f0f0f;
-    --muted: #606060;
-    --accent: #065fd4;
-    --accent-strong: #ff0033;
-    --track: #e5e5e5;
-    --danger: #cc0000;
-    --ok: #107516;
-    --warn: #b06000;
-    --shadow: 0 4px 32px rgb(0 0 0 / 0.2);
+    --row-hover: #f3f4fa;
+    --line: #dfe2ec;
+    --text: #1c1f2e;
+    --muted: #6b7188;
+    --accent: #5458e6;
+    --accent-strong: #4f46e5;
+    --track: #e4e6f0;
+    --danger: #d9363e;
+    --ok: #15803d;
+    --warn: #b45309;
+    --shadow: 0 8px 28px rgb(30 35 70 / 0.18), 0 0 0 1px rgb(30 35 70 / 0.08);
   }
 }
 
@@ -44,7 +43,7 @@ html, body {
 
 body {
   color: var(--text);
-  font: 13px/1.4 "Roboto", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   user-select: none;
 }
@@ -170,7 +169,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .meta.ok { color: var(--ok); }
 
 .bar { height: 4px; margin-top: 6px; border-radius: 2px; background: var(--track); overflow: hidden; }
-.bar-fill { height: 100%; width: 0; border-radius: 2px; background: var(--accent-strong); transition: width 0.25s linear; }
+.bar-fill { height: 100%; width: 0; border-radius: 2px; background: var(--accent); transition: width 0.25s linear; }
 .bar.paused .bar-fill { background: var(--warn); }
 .bar.indeterminate .bar-fill { width: 35%; animation: slide 1.1s ease-in-out infinite; }
 

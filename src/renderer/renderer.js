@@ -430,6 +430,9 @@ function renderSettings() {
   const lang = $('#language');
   lang.replaceChildren(...Object.entries(I18N.LANGUAGES).map(([code, name]) => el('option', { text: name, attrs: { value: code } })));
   lang.value = settings.language;
+  const style = $('#style');
+  style.replaceChildren(...['standard', 'minimal'].map((s) => el('option', { text: t(s === 'minimal' ? 'styleMinimal' : 'styleStandard'), attrs: { value: s } })));
+  style.value = settings.style || 'standard';
 
   const list = $('#shortcut-list');
   list.replaceChildren(
@@ -474,6 +477,8 @@ function recordKey(sc, button) {
 function applySettings(next) {
   settings = next;
   t = I18N.make(settings.language);
+  // Stil "Minimal": ruhigere Optik (style.css, Regeln unter :root[data-style="minimal"])
+  document.documentElement.dataset.style = settings.style || 'standard';
   applyTexts();
   render();
   renderDownloads();
@@ -488,6 +493,7 @@ $('#settings-btn').addEventListener('click', () => {
 $('#settings-close').addEventListener('click', () => settingsModal.close());
 $('[data-close-settings]').addEventListener('click', () => settingsModal.close());
 $('#language').addEventListener('change', (event) => api.setSettings({ language: event.target.value }));
+$('#style').addEventListener('change', (event) => api.setSettings({ style: event.target.value }));
 $('#shortcut-reset').addEventListener('click', () => {
   $('#shortcut-note').hidden = true;
   api.setSettings({ resetShortcuts: true });
