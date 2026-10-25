@@ -1,8 +1,8 @@
 {
   "name": "webcase",
   "productName": "Webcase",
-  "version": "1.5.0",
-  "description": "Startet HTML-Dateien wie eigenständige Programme.",
+  "version": "1.6.0",
+  "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
   "desktopName": "webcase",
@@ -61,6 +61,48 @@
         "description": "HTM-Datei",
         "icon": "assets/icon.ico",
         "role": "Viewer"
+      },
+      {
+        "ext": "pdf",
+        "name": "PDF-Dokument",
+        "description": "PDF-Dokument",
+        "icon": "assets/icon.ico",
+        "role": "Viewer"
+      },
+      {
+        "ext": "svg",
+        "name": "SVG-Grafik",
+        "description": "SVG-Grafik",
+        "icon": "assets/icon.ico",
+        "role": "Viewer"
+      },
+      {
+        "ext": "xhtml",
+        "name": "XHTML-Datei",
+        "description": "XHTML-Datei",
+        "icon": "assets/icon.ico",
+        "role": "Viewer"
+      },
+      {
+        "ext": "mhtml",
+        "name": "Webarchiv",
+        "description": "Webarchiv",
+        "icon": "assets/icon.ico",
+        "role": "Viewer"
+      },
+      {
+        "ext": "mht",
+        "name": "Webarchiv",
+        "description": "Webarchiv",
+        "icon": "assets/icon.ico",
+        "role": "Viewer"
+      },
+      {
+        "ext": "md",
+        "name": "Markdown-Datei",
+        "description": "Markdown-Datei",
+        "icon": "assets/icon.ico",
+        "role": "Viewer"
       }
     ],
     "win": {
@@ -95,7 +137,7 @@
       "icon": "assets/icon.png",
       "category": "Utility",
       "syncDesktopName": true,
-      "synopsis": "Startet HTML-Dateien wie eigenständige Programme",
+      "synopsis": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme",
       "artifactName": "Webcase-${version}-${arch}.${ext}",
       "target": [
         {

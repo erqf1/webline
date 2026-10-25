@@ -1,0 +1,82 @@
+/* Betrachter für Text, Markdown, JSON und CSV - ruhig wie YouTube: dunkles Grau, helle Schrift */
+:root {
+  color-scheme: dark;
+  --bg: #0f0f0f;
+  --panel: #181818;
+  --panel2: #272727;
+  --line: #303030;
+  --text: #f1f1f1;
+  --muted: #aaaaaa;
+  --link: #3ea6ff;
+  --code: #212121;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --panel: #f9f9f9;
+    --panel2: #f2f2f2;
+    --line: #e5e5e5;
+    --text: #0f0f0f;
+    --muted: #606060;
+    --link: #065fd4;
+    --code: #f2f2f2;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 16px/1.65 "Roboto", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+.doc { max-width: 860px; margin: 0 auto; padding: 40px 32px 80px; }
+.doc.wide { max-width: none; }
+
+/* Reiner Text, JSON, Logs */
+pre.plain {
+  margin: 0;
+  font: 13.5px/1.6 "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
+.json .k { color: #3ea6ff; }
+.json .s { color: #7ee787; }
+.json .n { color: #f2cc60; }
+.json .b { color: #ff7b72; }
+@media (prefers-color-scheme: light) {
+  .json .k { color: #065fd4; }
+  .json .s { color: #116329; }
+  .json .n { color: #953800; }
+  .json .b { color: #cf222e; }
+}
+
+/* Markdown */
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { line-height: 1.25; margin: 1.6em 0 0.6em; font-weight: 700; }
+.md h1 { font-size: 2em; margin-top: 0.2em; }
+.md h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--line); }
+.md h3 { font-size: 1.25em; }
+.md p, .md ul, .md ol, .md blockquote, .md table, .md pre { margin: 0 0 1em; }
+.md a { color: var(--link); text-decoration: none; }
+.md a:hover { text-decoration: underline; }
+.md code { padding: 0.15em 0.4em; border-radius: 6px; background: var(--code); font: 0.88em "Cascadia Mono", Consolas, monospace; }
+.md pre { padding: 14px 16px; border-radius: 12px; background: var(--code); overflow-x: auto; }
+.md pre code { padding: 0; background: none; font-size: 13.5px; line-height: 1.55; }
+.md blockquote { padding: 2px 16px; border-left: 4px solid var(--line); color: var(--muted); }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
+.md li { margin: 0.25em 0; }
+.md .img { color: var(--muted); font-style: italic; }
+.md input[type=checkbox] { margin-right: 6px; }
+
+/* Tabellen (Markdown und CSV) */
+table { border-collapse: collapse; font-size: 14px; }
+th, td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { position: sticky; top: 0; background: var(--panel2); font-weight: 600; }
+tr:hover td { background: var(--panel); }
+.csv { overflow-x: auto; }
+.csv td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.note { margin-top: 16px; color: var(--muted); font-size: 13px; }
+
+@media print {
+  :root { --bg: #fff; --text: #000; --muted: #444; --line: #ccc; --code: #f3f3f3; --panel2: #eee; }
+  .doc { padding: 0; max-width: none; }
+  th { position: static; }
+}

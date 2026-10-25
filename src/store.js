@@ -4,8 +4,24 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const HTML_EXTENSIONS = new Set(['.html', '.htm']);
+// Welche Dateien Webcase starten kann - und wie (siehe launch() in main.js)
+const KINDS = {
+  html: ['.html', '.htm', '.xhtml', '.mhtml', '.mht', '.svg'],
+  pdf: ['.pdf'],
+  image: ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.ico'],
+  video: ['.mp4', '.webm', '.ogv', '.m4v', '.mov'],
+  audio: ['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.flac', '.opus', '.aac'],
+  text: ['.txt', '.md', '.markdown', '.json', '.csv', '.log', '.xml', '.yaml', '.yml', '.ini', '.toml'],
+};
+const KIND_OF = new Map(Object.entries(KINDS).flatMap(([kind, exts]) => exts.map((e) => [e, kind])));
+const EXTENSIONS = [...KIND_OF.keys()].map((e) => e.slice(1));
+const TITLE_KINDS = new Set(['.html', '.htm', '.xhtml', '.svg']);
 const NAME_LIMIT = 80;
+
+/** "html" | "pdf" | "image" | "video" | "audio" | "text" | null */
+function fileKind(file) {
+  return typeof file === 'string' ? KIND_OF.get(path.extname(file).toLowerCase()) ?? null : null;
+}
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
@@ -23,8 +39,8 @@ function decodeEntities(text) {
   });
 }
 
-async function isHtmlFile(file) {
-  if (typeof file !== 'string' || !HTML_EXTENSIONS.has(path.extname(file).toLowerCase())) return false;
+async function isSupportedFile(file) {
+  if (!fileKind(file)) return false;
   try {
     return (await fs.promises.stat(file)).isFile();
   } catch {
@@ -35,6 +51,7 @@ async function isHtmlFile(file) {
 /** Liest den <title> aus dem Anfang der Datei; Fallback ist der Dateiname. */
 async function readTitle(file) {
   const fallback = path.basename(file, path.extname(file));
+  if (!TITLE_KINDS.has(path.extname(file).toLowerCase())) return fallback.slice(0, NAME_LIMIT);
   try {
     const handle = await fs.promises.open(file, 'r');
     try {
@@ -151,4 +168,4 @@ class Library {
   }
 }
 
-module.exports = { Library, isHtmlFile, idFor };
+module.exports = { Library, isSupportedFile, fileKind, idFor, EXTENSIONS };

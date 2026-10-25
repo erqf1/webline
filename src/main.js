@@ -4,7 +4,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell } = requir
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { Library, isHtmlFile, idFor } = require('./store');
+const { Library, isSupportedFile, fileKind, idFor, EXTENSIONS } = require('./store');
 const { Downloads } = require('./downloads');
 const { DownloadManager } = require('./download-manager');
 const { Settings } = require('./settings');
@@ -13,6 +13,9 @@ const i18n = require('./i18n');
 const ICON = path.join(__dirname, '..', 'assets', 'icon.png');
 const PRELOAD = path.join(__dirname, 'preload.js');
 const LAUNCHER_PAGE = path.join(__dirname, 'renderer', 'index.html');
+const VIEWER_PAGE = path.join(__dirname, 'viewer', 'viewer.html');
+const VIEWER_PRELOAD = path.join(__dirname, 'viewer', 'viewer-preload.js');
+const TEXT_LIMIT = 25 * 1024 * 1024; // größere Textdateien werden gekürzt angezeigt
 
 let library;
 let downloads;
@@ -37,7 +40,7 @@ async function exists(file) {
 
 async function getState() {
   const items = await Promise.all(
-    library.items.map(async (item) => ({ ...item, missing: !(await exists(item.path)) }))
+    library.items.map(async (item) => ({ ...item, kind: fileKind(item.path), missing: !(await exists(item.path)) }))
   );
   return { items, running: [...programWins.keys()] };
 }
@@ -85,7 +88,7 @@ async function addPaths(paths) {
   const valid = [];
   let rejected = 0;
   for (const file of paths) {
-    if (await isHtmlFile(file)) valid.push(file);
+    if (await isSupportedFile(file)) valid.push(file);
     else rejected++;
   }
   const { added, duplicates } = await library.add(valid);
@@ -93,13 +96,13 @@ async function addPaths(paths) {
   const parts = [];
   if (added) parts.push(added === 1 ? t('addedOne') : t('addedMany', { n: added }));
   if (duplicates) parts.push(t('alreadyThere', { n: duplicates }));
-  if (rejected) parts.push(t('notHtml', { n: rejected }));
+  if (rejected) parts.push(t('notSupported', { n: rejected }));
   if (parts.length) toast(parts.join(' · '), added ? 'ok' : 'warn');
 
   await broadcast();
 }
 
-/** HTML-Dateien aus Kommandozeilenargumenten (z. B. "Öffnen mit" oder Drag & Drop auf die .exe). */
+/** Dateien aus Kommandozeilenargumenten (z. B. "Öffnen mit" oder Drag & Drop auf die .exe). */
 function htmlArgs(argv) {
   const args = process.defaultApp ? argv.slice(2) : argv.slice(1);
   return args.filter((a) => !a.startsWith('-'));
@@ -112,11 +115,11 @@ function htmlArgs(argv) {
  */
 async function launchArgs(files) {
   const valid = [];
-  for (const file of files) if (await isHtmlFile(file)) valid.push(file);
+  for (const file of files) if (await isSupportedFile(file)) valid.push(file);
 
   if (!valid.length) {
     showLauncher();
-    if (files.length) await notify(t('notHtmlFile'), 'warn');
+    if (files.length) await notify(t('notSupportedFile'), 'warn');
     return;
   }
 
@@ -154,6 +157,9 @@ async function launch(id) {
       return { ok: false, error: t('fileNotFound') };
     }
 
+    // PDF: eingebauter Chromium-Viewer (Blättern, Zoom, Suchen, Drucken). Bilder, Videos und Musik zeigt Chromium
+    // selbst an. Text, Markdown, JSON und CSV laufen über den eigenen Betrachter (viewer/).
+    const kind = fileKind(item.path) ?? 'html';
     const win = new BrowserWindow({
       title: item.name,
       // Startet maximiert statt im echten Vollbild - fühlt sich wie ein normales
@@ -170,10 +176,13 @@ async function launch(id) {
         nodeIntegration: false,
         sandbox: true,
         spellcheck: false,
+        plugins: kind === 'pdf',
+        preload: kind === 'text' ? VIEWER_PRELOAD : undefined,
       },
     });
     win.removeMenu();
     programWins.set(id, win);
+    win.webcaseItem = item.id;
     library.touch(id);
 
     win.once('ready-to-show', () => {
@@ -189,7 +198,7 @@ async function launch(id) {
       }
     });
 
-    const originalUrl = pathToFileURL(item.path).href;
+    const originalUrl = kind === 'text' ? pathToFileURL(VIEWER_PAGE).href : pathToFileURL(item.path).href;
     attachProgramBehavior(win, originalUrl, item.id);
     win.loadURL(originalUrl);
     await broadcast();
@@ -239,8 +248,17 @@ function attachProgramBehavior(win, originalUrl, programId) {
     else if (action === 'hardReload') webContents.reloadIgnoringCache();
     else if (action === 'devtools') webContents.toggleDevTools();
     else if (action === 'downloads') downloadManager.open(programId, 'toggle');
+    else if (action === 'print') printProgram(win);
     else return;
     event.preventDefault();
+  });
+}
+
+/** Drucken mit dem Druckdialog des Systems. Bei PDFs druckt der eingebaute Viewer das ganze Dokument. */
+function printProgram(win) {
+  if (win.isDestroyed()) return;
+  win.webContents.print({ silent: false, printBackground: true }, (ok, reason) => {
+    if (!ok && reason && reason !== 'cancelled' && reason !== 'Print job canceled') toast(t('printFailed', { reason }), 'error');
   });
 }
 
@@ -252,7 +270,7 @@ function programShortcut(input) {
   );
   if (!pressed) return null;
   const sc = settings.shortcuts();
-  for (const id of ['fullscreen', 'close', 'reload', 'hardReload', 'devtools', 'downloads'])
+  for (const id of ['fullscreen', 'close', 'reload', 'hardReload', 'devtools', 'downloads', 'print'])
     if (sc[id] && sc[id] === pressed) return id;
   // Gewohnte Zweitbelegungen, solange die Standardtasten gelten
   if (sc.reload === 'F5' && pressed === 'Mod+R') return 'reload';
@@ -311,7 +329,11 @@ function registerIpc() {
     const result = await dialog.showOpenDialog(launcherWin, {
       title: t('addHtmlDialog'),
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: t('htmlFiles'), extensions: ['html', 'htm'] }],
+      filters: [
+        { name: t('supportedFiles'), extensions: EXTENSIONS },
+        { name: t('htmlFiles'), extensions: ['html', 'htm', 'xhtml', 'mhtml', 'mht', 'svg'] },
+        { name: 'PDF', extensions: ['pdf'] },
+      ],
     });
     if (!result.canceled) await addPaths(result.filePaths);
   });
@@ -331,6 +353,31 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:launch', (_event, id) => launch(String(id)));
+
+  // Text-Betrachter fragt nach dem Inhalt "seiner" Datei (welche, steht am Fenster - nicht in der Anfrage)
+  ipcMain.handle('viewer:text', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const item = win && library.find(win.webcaseItem);
+    if (!item) return { error: t('entryNotFound') };
+    try {
+      const handle = await fs.promises.open(item.path, 'r');
+      try {
+        const size = (await handle.stat()).size;
+        const { buffer, bytesRead } = await handle.read({ buffer: Buffer.alloc(Math.min(size, TEXT_LIMIT)), position: 0 });
+        const text = buffer.toString('utf8', 0, bytesRead).replace(/^\uFEFF/, '');
+        return {
+          name: item.name,
+          ext: path.extname(item.path).toLowerCase(),
+          text,
+          truncated: size > TEXT_LIMIT ? t('truncated', { mb: Math.round(TEXT_LIMIT / 1048576) }) : '',
+        };
+      } finally {
+        await handle.close();
+      }
+    } catch {
+      return { error: t('fileNotFound') };
+    }
+  });
 
   ipcMain.handle('app:reveal', (_event, id) => {
     const item = library.find(String(id));

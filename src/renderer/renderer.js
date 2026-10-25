@@ -24,6 +24,13 @@ const ICONS = {
   retry: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>',
 };
 
+const KIND_ICONS = {
+  image: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg>',
+  video: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>',
+  audio: '<svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>',
+  text: '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
+};
+
 let state = { items: [], running: [] };
 let downloadsState = { items: [] };
 let query = '';
@@ -160,8 +167,12 @@ async function remove(item) {
 function card(item) {
   const running = state.running.includes(item.id);
 
-  const tile = el('div', { className: 'tile', text: [...item.name][0] ?? '?' });
-  tile.style.setProperty('--h', hueFor(item.id));
+  // HTML-Programme: Anfangsbuchstabe auf eigener Farbe. Andere Dateien: feste Farbe + Art (PDF, Bild …)
+  const kind = item.kind && item.kind !== 'html' ? item.kind : null;
+  const label = { pdf: 'PDF', image: '', video: '', audio: '', text: '' }[kind];
+  const tile = el('div', { className: `tile${kind ? ` kind-${kind}` : ''}`, text: kind ? label : [...item.name][0] ?? '?' });
+  if (kind && !label) tile.innerHTML = KIND_ICONS[kind]; // statische Konstante
+  if (!kind) tile.style.setProperty('--h', hueFor(item.id));
   const play = el('span', { className: 'play' });
   play.innerHTML = ICONS.play;
   tile.append(play);
@@ -174,6 +185,7 @@ function card(item) {
   );
   if (item.missing) meta.append(el('span', { className: 'badge missing', text: t('fileMissing') }));
   else if (running) meta.append(el('span', { className: 'badge running', text: t('running') }));
+  else if (kind) meta.append(el('span', { className: 'badge kind', text: t(`kind${kind[0].toUpperCase()}${kind.slice(1)}`) }));
 
   const actions = el(
     'div',
@@ -407,7 +419,7 @@ function applyTexts() {
   // Fußzeile: die wichtigsten Tasten im Programm, mit den aktuellen Belegungen
   const hint = $('#footer-hint');
   hint.replaceChildren(t('inProgram'));
-  for (const [id, text] of [['fullscreen', 'hintFullscreen'], ['close', 'hintClose'], ['reload', 'hintReload'], ['devtools', 'hintDevtools']]) {
+  for (const [id, text] of [['fullscreen', 'hintFullscreen'], ['close', 'hintClose'], ['print', 'hintPrint'], ['reload', 'hintReload'], ['devtools', 'hintDevtools']]) {
     const key = keyLabel(id);
     if (!key) continue;
     hint.append(el('span', {}, el('kbd', { text: key }), ` ${t(text)}`));

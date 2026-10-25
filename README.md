@@ -2,13 +2,15 @@
 
 Doppelklick auf eine HTML-Datei, und sie läuft wie ein eigenes Programm – in ihrem eigenen Fenster, ohne Adressleiste, ohne Tabs, ohne Browser drumherum. Alle so gestarteten Dateien landen nebenbei in einem Menü, falls du sie mal wiederfinden willst. Läuft unter Windows, Linux und macOS.
 
+Außer HTML öffnet Webcase auch **PDFs** (Blättern, Zoom, Suchen, **Drucken**), **SVG**, **XHTML**, Webarchive (**MHTML**), **Bilder**, **Videos**, **Musik** und **Textdateien** – Markdown wird als Dokument angezeigt, JSON eingerückt, CSV als Tabelle.
+
 **[Releases](https://github.com/erqf1/webcase/releases)** · Lizenz: [Apache 2.0](LICENSE)
 
 ## Fertige Pakete
 
 | System | Optionen |
 | --- | --- |
-| Windows | **Installer** (`Webcase-Setup-*.exe`, trägt Webcase bei „Öffnen mit“ für `.html`/`.htm` ein) oder **portabel** (`Webcase-*-portable.exe`, keine Installation) |
+| Windows | **Installer** (`Webcase-Setup-*.exe`, trägt Webcase bei „Öffnen mit“ für `.html`, `.htm`, `.pdf`, `.svg`, `.xhtml`, `.mhtml` und `.md` ein) oder **portabel** (`Webcase-*-portable.exe`, keine Installation) |
 | Linux | `.deb` (Debian/Ubuntu), `.pacman` (Arch) oder `.tar.gz` (portabel, jede Distribution) |
 | macOS | `.zip` für Apple Silicon oder Intel (App-Bundle, immer portabel) |
 
@@ -63,6 +65,7 @@ Der Name eines Programms ist der `<title>` der HTML-Datei (sonst der Dateiname) 
 | `Strg+W` / `⌘W` (oder `Alt+F4`) | Programm beenden, zurück zum Launcher |
 | `F5` / `Strg+Shift+R` | Neu laden / Cache umgehen |
 | `Strg+J` / `⌘J` | Download-Liste ein/aus |
+| `Strg+P` / `⌘P` | Drucken (bei PDFs das ganze Dokument) |
 | `F12` | Entwicklertools |
 
 `Esc` bleibt bewusst dem Programm überlassen (z. B. für Pausemenüs).
