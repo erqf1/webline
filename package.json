@@ -1,7 +1,7 @@
 {
   "name": "webcase",
   "productName": "Webcase",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
