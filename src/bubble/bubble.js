@@ -6,7 +6,7 @@
 //   panel  - Liste der letzten Downloads dieses Programms
 
 const api = window.bubble;
-const I18N = window.WebcaseI18n;
+const I18N = window.WeblineI18n;
 const $ = (selector) => document.querySelector(selector);
 const isMac = api.platform === 'darwin';
 

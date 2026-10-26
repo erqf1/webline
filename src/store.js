@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Welche Dateien Webcase starten kann - und wie (siehe launch() in main.js)
+// Welche Dateien Webline starten kann - und wie (siehe launch() in main.js)
 const KINDS = {
   html: ['.html', '.htm', '.xhtml', '.mhtml', '.mht', '.svg'],
   pdf: ['.pdf'],

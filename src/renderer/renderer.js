@@ -1,7 +1,7 @@
 'use strict';
 
 const api = window.launcher;
-const I18N = window.WebcaseI18n;
+const I18N = window.WeblineI18n;
 const $ = (selector) => document.querySelector(selector);
 const isMac = api.platform === 'darwin';
 

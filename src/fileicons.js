@@ -1,6 +1,6 @@
 'use strict';
 
-// Windows: Dateisymbole (hell oder dunkel) für die Dateitypen von Webcase umschalten.
+// Windows: Dateisymbole (hell oder dunkel) für die Dateitypen von Webline umschalten.
 // Der Installer legt je Typ eine ProgID an (Name aus package.json, z. B. "PDF-Dokument", Symbol: hell). Hier wird nur
 // deren DefaultIcon in HKCU umgebogen - HKCU geht vor HKLM und braucht keine Adminrechte.
 const { execFile } = require('child_process');
@@ -36,7 +36,7 @@ async function apply(variant) {
   for (const [progId, icon] of Object.entries(PROGIDS)) {
     lines.push(`[HKEY_CURRENT_USER\\Software\\Classes\\${progId}\\DefaultIcon]`, `@="${esc(path.join(dir(variant), `${icon}.ico`))}"`, '');
   }
-  const regFile = path.join(os.tmpdir(), `webcase-icons-${process.pid}.reg`);
+  const regFile = path.join(os.tmpdir(), `webline-icons-${process.pid}.reg`);
   fs.writeFileSync(regFile, Buffer.from(`﻿${lines.join('\r\n')}\r\n`, 'utf16le'));  // reg import: UTF-16 mit BOM
   const ok = await run('reg.exe', ['import', regFile]);
   fs.rmSync(regFile, { force: true });

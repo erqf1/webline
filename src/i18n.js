@@ -1,11 +1,11 @@
 'use strict';
 
 // Texte für Launcher, Download-Blase und Hauptprozess. Englisch ist der Standard, Deutsch umschaltbar.
-// Läuft im Hauptprozess (require) und in den Fenstern (als normales <script>, dann window.WebcaseI18n).
+// Läuft im Hauptprozess (require) und in den Fenstern (als normales <script>, dann window.WeblineI18n).
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.WebcaseI18n = api;
+  else root.WeblineI18n = api;
 })(typeof self !== 'undefined' ? self : this, () => {
   const LANGUAGES = { en: 'English', de: 'Deutsch' };
 
@@ -86,12 +86,12 @@
       downloadFailed: 'Download failed: {name}',
       cantRetry: "This download can't be restarted. Start it again in the program.",
       cantOpen: "The file couldn't be opened. Was it moved or deleted?",
-      updateTitle: 'Webcase update',
-      updateReady: 'Webcase {version} is ready.',
+      updateTitle: 'Webline update',
+      updateReady: 'Webline {version} is ready.',
       updateDetail: 'Restart now to install the update? Otherwise it installs itself the next time you quit.',
       restartNow: 'Restart now',
       openDownloadPage: 'Open download page',
-      updateAvailable: 'Webcase {version} is available.',
+      updateAvailable: 'Webline {version} is available.',
       updateManualDetail: 'This version can not update itself. Download the new version and replace the old one – your programs and settings stay.',
       later: 'Later',
       // Einstellungen
@@ -117,7 +117,7 @@
       scAdd: 'Add files (launcher)',
       scSearch: 'Search (launcher)',
       notSupported: '{n}× not supported',
-      notSupportedFile: "Webcase can't open this file type.",
+      notSupportedFile: "Webline can't open this file type.",
       supportedFiles: 'All supported files',
       printFailed: 'Printing failed: {reason}',
       truncated: 'The file is very large – only the first {mb} MB are shown.',
@@ -203,12 +203,12 @@
       downloadFailed: 'Download fehlgeschlagen: {name}',
       cantRetry: 'Dieser Download lässt sich nicht erneut starten. Starte ihn im Programm noch einmal.',
       cantOpen: 'Datei konnte nicht geöffnet werden. Wurde sie verschoben oder gelöscht?',
-      updateTitle: 'Webcase-Update',
-      updateReady: 'Webcase {version} ist bereit.',
+      updateTitle: 'Webline-Update',
+      updateReady: 'Webline {version} ist bereit.',
       updateDetail: 'Jetzt neu starten, um das Update zu installieren? Sonst wird es beim nächsten Beenden von selbst installiert.',
       restartNow: 'Jetzt neu starten',
       openDownloadPage: 'Download-Seite öffnen',
-      updateAvailable: 'Webcase {version} ist da.',
+      updateAvailable: 'Webline {version} ist da.',
       updateManualDetail: 'Diese Version kann sich nicht selbst aktualisieren. Lade die neue Version herunter und ersetze die alte – deine Programme und Einstellungen bleiben.',
       later: 'Später',
       language: 'Sprache',
@@ -233,7 +233,7 @@
       scAdd: 'Dateien hinzufügen (Launcher)',
       scSearch: 'Suchen (Launcher)',
       notSupported: '{n}× nicht unterstützt',
-      notSupportedFile: 'Diesen Dateityp kann Webcase nicht öffnen.',
+      notSupportedFile: 'Diesen Dateityp kann Webline nicht öffnen.',
       supportedFiles: 'Alle unterstützten Dateien',
       printFailed: 'Drucken hat nicht geklappt: {reason}',
       truncated: 'Die Datei ist sehr groß – angezeigt werden nur die ersten {mb} MB.',

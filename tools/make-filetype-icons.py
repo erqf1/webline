@@ -1,6 +1,6 @@
-"""Dateisymbole für Dateien, die mit Webcase geöffnet werden: Blatt mit Eselsohr und Zeilen, das Webcase-Logo in der
+"""Dateisymbole für Dateien, die mit Webline geöffnet werden: Blatt mit Eselsohr und Zeilen, das Webline-Logo in der
 Mitte, darunter die Endung (html, pdf ...) und ganz unten ein Streifen - je Typ in eigener Farbe, hell und dunkel.
-Welche Variante Windows zeigt, stellt man in Webcase ein (src/fileicons.js). Die Zuordnung Typ -> Symbol steht in
+Welche Variante Windows zeigt, stellt man in Webline ein (src/fileicons.js). Die Zuordnung Typ -> Symbol steht in
 package.json (build.fileAssociations[].icon). Schreibt assets/filetypes/light|dark/<name>.ico.
 Braucht Python 3 + Pillow und Segoe UI (Windows). Aufruf: python tools/make-filetype-icons.py"""
 import io

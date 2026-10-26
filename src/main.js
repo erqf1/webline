@@ -23,6 +23,18 @@ let downloads;
 let downloadManager;
 let settings;
 let t = i18n.make('en');  // Übersetzer für die gewählte Sprache
+
+// Webline hieß bis Version 1.8 "Webcase": Einstellungen, Bibliothek und Downloads aus dem alten Ordner übernehmen
+(() => {
+  const oldDir = path.join(app.getPath('appData'), 'Webcase');
+  const newDir = app.getPath('userData');
+  if (oldDir === newDir || fs.existsSync(newDir) || !fs.existsSync(oldDir)) return;
+  try {
+    fs.renameSync(oldDir, newDir);
+  } catch {
+    app.setPath('userData', oldDir);  // z. B. läuft noch die alte Version: dann einfach dort weiterarbeiten
+  }
+})();
 const isMac = process.platform === 'darwin';
 let launcherWin = null;
 const programWins = new Map(); // id -> BrowserWindow
@@ -183,7 +195,7 @@ async function launch(id) {
     });
     win.removeMenu();
     programWins.set(id, win);
-    win.webcaseItem = item.id;
+    win.weblineItem = item.id;
     library.touch(id);
 
     win.once('ready-to-show', () => {
@@ -296,7 +308,7 @@ async function syncFileIcons(force) {
 
 function createLauncher() {
   launcherWin = new BrowserWindow({
-    title: 'Webcase',
+    title: 'Webline',
     width: 1040,
     height: 700,
     minWidth: 640,
@@ -367,7 +379,7 @@ function registerIpc() {
   // Text-Betrachter fragt nach dem Inhalt "seiner" Datei (welche, steht am Fenster - nicht in der Anfrage)
   ipcMain.handle('viewer:text', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    const item = win && library.find(win.webcaseItem);
+    const item = win && library.find(win.weblineItem);
     if (!item) return { error: t('entryNotFound') };
     try {
       const handle = await fs.promises.open(item.path, 'r');
@@ -512,8 +524,8 @@ function setupUpdateNotice() {
   const check = async () => {
     if (asked) return;
     try {
-      const res = await net.fetch('https://api.github.com/repos/erqf1/webcase/releases/latest', {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Webcase' },
+      const res = await net.fetch('https://api.github.com/repos/erqf1/webline/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Webline' },
       });
       if (!res.ok) return;
       const rel = await res.json();
@@ -538,7 +550,7 @@ function setupUpdateNotice() {
         detail: t('updateManualDetail'),
       };
       const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
-      if (response === 0) shell.openExternal(rel.html_url || 'https://github.com/erqf1/webcase/releases/latest');
+      if (response === 0) shell.openExternal(rel.html_url || 'https://github.com/erqf1/webline/releases/latest');
       else fs.writeFileSync(laterFile, JSON.stringify({ version, until: Date.now() + 14 * 24 * 3600 * 1000 }));
     } catch {
       // offline - später nochmal

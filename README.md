@@ -1,20 +1,20 @@
-# Webcase
+# Webline
 
 Doppelklick auf eine HTML-Datei, und sie läuft wie ein eigenes Programm – in ihrem eigenen Fenster, ohne Adressleiste, ohne Tabs, ohne Browser drumherum. Alle so gestarteten Dateien landen nebenbei in einem Menü, falls du sie mal wiederfinden willst. Läuft unter Windows, Linux und macOS.
 
-Außer HTML öffnet Webcase auch **PDFs** (Blättern, Zoom, Suchen, **Drucken**), **SVG**, **XHTML**, Webarchive (**MHTML**), **Bilder**, **Videos**, **Musik** und **Textdateien** – Markdown wird als Dokument angezeigt, JSON eingerückt, CSV als Tabelle.
+Außer HTML öffnet Webline auch **PDFs** (Blättern, Zoom, Suchen, **Drucken**), **SVG**, **XHTML**, Webarchive (**MHTML**), **Bilder**, **Videos**, **Musik** und **Textdateien** – Markdown wird als Dokument angezeigt, JSON eingerückt, CSV als Tabelle.
 
-**[Releases](https://github.com/erqf1/webcase/releases)** · Lizenz: [Apache 2.0](LICENSE)
+**[Releases](https://github.com/erqf1/webline/releases)** · Lizenz: [Apache 2.0](LICENSE)
 
 ## Fertige Pakete
 
 | System | Optionen |
 | --- | --- |
-| Windows | **Installer** (`Webcase-Setup-*.exe`, trägt Webcase bei „Öffnen mit“ für `.html`, `.htm`, `.pdf`, `.svg`, `.xhtml`, `.mhtml` und `.md` ein) oder **portabel** (`Webcase-*-portable.exe`, keine Installation) |
+| Windows | **Installer** (`Webline-Setup-*.exe`, trägt Webline bei „Öffnen mit“ für `.html`, `.htm`, `.pdf`, `.svg`, `.xhtml`, `.mhtml` und `.md` ein) oder **portabel** (`Webline-*-portable.exe`, keine Installation) |
 | Linux | `.deb` (Debian/Ubuntu), `.pacman` (Arch) oder `.tar.gz` (portabel, jede Distribution) |
 | macOS | `.zip` für Apple Silicon oder Intel (App-Bundle, immer portabel) |
 
-Bei der Windows-Installation lässt sich der Zielordner frei wählen (Assistent, kein „One-Click“-Installer). Alle Downloads: [Releases-Seite](https://github.com/erqf1/webcase/releases).
+Bei der Windows-Installation lässt sich der Zielordner frei wählen (Assistent, kein „One-Click“-Installer). Alle Downloads: [Releases-Seite](https://github.com/erqf1/webline/releases).
 
 ### Linux
 
@@ -30,8 +30,8 @@ sudo chown root:root chrome-sandbox && sudo chmod 4755 chrome-sandbox   # empfoh
 Die App ist **nicht signiert** (Signieren geht nur auf einem Mac mit Apple-Entwicklerkonto). Einmalig nach dem Entpacken im Terminal:
 
 ```bash
-xattr -cr Webcase.app
-codesign --force --deep --sign - Webcase.app   # nötig auf Apple Silicon
+xattr -cr Webline.app
+codesign --force --deep --sign - Webline.app   # nötig auf Apple Silicon
 ```
 
 Beim ersten Start ggf. Rechtsklick → „Öffnen“.
@@ -40,7 +40,7 @@ Beim ersten Start ggf. Rechtsklick → „Öffnen“.
 
 | Aktion | So geht's |
 | --- | --- |
-| HTML-Datei starten | Doppelklick auf die Datei, oder „Öffnen mit“ → Webcase (nach der Installation) |
+| HTML-Datei starten | Doppelklick auf die Datei, oder „Öffnen mit“ → Webline (nach der Installation) |
 | Programm zur Liste hinzufügen | **HTML hinzufügen** (Strg+O, auf dem Mac ⌘O) oder Datei ins Fenster ziehen |
 | Aus der Liste starten | Karte anklicken (oder Enter) |
 | Umbenennen / Entfernen | Symbole oben rechts an der Karte (oder F2 / Entf) |
@@ -87,7 +87,7 @@ Nur echte Web-Links (normale Seiten, keine Downloads) öffnen weiterhin im Stand
 - **Relative Dateien** (CSS, Skripte, Bilder neben der HTML-Datei) werden normal geladen. WebGL und WebGPU laufen mit Hardwarebeschleunigung.
 - **Links ins Web** (`http`/`https`) öffnen im Standardbrowser statt das Programm zu ersetzen.
 - **Verschobene Dateien** werden in der Liste als „Datei fehlt“ markiert. Entfernen und am neuen Ort wieder hinzufügen.
-- **Die Liste liegt in** `%APPDATA%\Webcase\library.json` (Windows), `~/Library/Application Support/Webcase/` (macOS), `~/.config/Webcase/` (Linux).
+- **Die Liste liegt in** `%APPDATA%\Webline\library.json` (Windows), `~/Library/Application Support/Webline/` (macOS), `~/.config/Webline/` (Linux).
 - **Bekannte Einschränkung:** Der Windows-Installer trägt beim Deinstallieren den „Öffnen mit“-Eintrag nicht automatisch wieder aus (electron-builder-Verhalten). Harmlos – der Eintrag verweist danach nur ins Leere.
 
 ## Entwickeln & selbst bauen

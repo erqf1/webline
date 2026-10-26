@@ -1,11 +1,11 @@
 {
   "name": "webcase",
-  "productName": "Webcase",
-  "version": "1.8.2",
+  "productName": "Webline",
+  "version": "1.9.0",
   "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
-  "desktopName": "webcase",
+  "desktopName": "webline",
   "scripts": {
     "start": "electron .",
     "icon": "node tools/make-icon.js",
@@ -28,11 +28,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/erqf1/webcase.git"
+    "url": "https://github.com/erqf1/webline.git"
   },
   "build": {
     "appId": "app.webcase",
-    "productName": "Webcase",
+    "productName": "Webline",
     "directories": {
       "output": "dist"
     },
@@ -45,7 +45,7 @@
     "publish": {
       "provider": "github",
       "owner": "erqf1",
-      "repo": "webcase"
+      "repo": "webline"
     },
     "fileAssociations": [
       {
@@ -133,22 +133,23 @@
       ]
     },
     "nsis": {
-      "artifactName": "Webcase-Setup-${version}.${ext}",
+      "artifactName": "Webline-Setup-${version}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
     },
     "portable": {
-      "artifactName": "Webcase-${version}-portable.${ext}"
+      "artifactName": "Webline-${version}-portable.${ext}"
     },
     "linux": {
       "icon": "assets/icon.png",
       "category": "Utility",
       "syncDesktopName": true,
       "synopsis": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme",
-      "artifactName": "Webcase-${version}-${arch}.${ext}",
+      "artifactName": "Webline-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "deb",
@@ -171,10 +172,10 @@
       ]
     },
     "deb": {
-      "artifactName": "Webcase-${version}-amd64.${ext}"
+      "artifactName": "Webline-${version}-amd64.${ext}"
     },
     "pacman": {
-      "artifactName": "Webcase-${version}-x86_64.${ext}"
+      "artifactName": "Webline-${version}-x86_64.${ext}"
     },
     "mac": {
       "icon": "assets/icon.icns",
@@ -193,7 +194,7 @@
           ]
         }
       ],
-      "artifactName": "Webcase-${version}-mac-${arch}.${ext}"
+      "artifactName": "Webline-${version}-mac-${arch}.${ext}"
     }
   },
   "dependencies": {
