@@ -433,6 +433,11 @@ function renderSettings() {
   const style = $('#style');
   style.replaceChildren(...['standard', 'minimal'].map((s) => el('option', { text: t(s === 'minimal' ? 'styleMinimal' : 'styleStandard'), attrs: { value: s } })));
   style.value = settings.style || 'standard';
+  // Dateisymbole im Explorer: nur in der installierten Windows-Version
+  $('#file-icons-row').hidden = !settings.fileIconsAvailable;
+  const icons = $('#file-icons');
+  icons.replaceChildren(...[['auto', 'fileIconsAuto'], ['light', 'fileIconsLight'], ['dark', 'fileIconsDark']].map(([v, k]) => el('option', { text: t(k), attrs: { value: v } })));
+  icons.value = settings.fileIcons || 'auto';
 
   const list = $('#shortcut-list');
   list.replaceChildren(
@@ -494,6 +499,7 @@ $('#settings-close').addEventListener('click', () => settingsModal.close());
 $('[data-close-settings]').addEventListener('click', () => settingsModal.close());
 $('#language').addEventListener('change', (event) => api.setSettings({ language: event.target.value }));
 $('#style').addEventListener('change', (event) => api.setSettings({ style: event.target.value }));
+$('#file-icons').addEventListener('change', (event) => api.setSettings({ fileIcons: event.target.value }));
 $('#shortcut-reset').addEventListener('click', () => {
   $('#shortcut-note').hidden = true;
   api.setSettings({ resetShortcuts: true });

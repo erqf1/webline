@@ -52,56 +52,56 @@
         "ext": "html",
         "name": "HTML-Datei",
         "description": "HTML-Datei",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/html.ico",
         "role": "Viewer"
       },
       {
         "ext": "htm",
         "name": "HTM-Datei",
         "description": "HTM-Datei",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/htm.ico",
         "role": "Viewer"
       },
       {
         "ext": "pdf",
         "name": "PDF-Dokument",
         "description": "PDF-Dokument",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/pdf.ico",
         "role": "Viewer"
       },
       {
         "ext": "svg",
         "name": "SVG-Grafik",
         "description": "SVG-Grafik",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/svg.ico",
         "role": "Viewer"
       },
       {
         "ext": "xhtml",
         "name": "XHTML-Datei",
         "description": "XHTML-Datei",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/xhtml.ico",
         "role": "Viewer"
       },
       {
         "ext": "mhtml",
         "name": "Webarchiv",
         "description": "Webarchiv",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/mhtml.ico",
         "role": "Viewer"
       },
       {
         "ext": "mht",
         "name": "Webarchiv",
         "description": "Webarchiv",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/mhtml.ico",
         "role": "Viewer"
       },
       {
         "ext": "md",
         "name": "Markdown-Datei",
         "description": "Markdown-Datei",
-        "icon": "assets/icon.ico",
+        "icon": "assets/filetypes/light/md.ico",
         "role": "Viewer"
       }
     ],
@@ -118,6 +118,16 @@
           "target": "portable",
           "arch": [
             "x64"
+          ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "assets/filetypes",
+          "to": "filetypes",
+          "filter": [
+            "light/*.ico",
+            "dark/*.ico"
           ]
         }
       ]

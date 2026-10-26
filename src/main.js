@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell } = require('electron');
+const fileIcons = require('./fileicons');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -279,7 +280,16 @@ function programShortcut(input) {
 }
 
 function settingsState() {
-  return { language: settings.language, style: settings.style, shortcuts: settings.shortcuts(), platform: process.platform };
+  return {
+    language: settings.language, style: settings.style, shortcuts: settings.shortcuts(), platform: process.platform,
+    fileIcons: settings.fileIcons, fileIconsAvailable: fileIcons.available(),
+  };
+}
+
+// Dateisymbole im Explorer hell/dunkel (Windows, installierte Version)
+async function syncFileIcons(force) {
+  const applied = await fileIcons.sync(settings.fileIcons, settings.fileIconsApplied, force);
+  if (applied) settings.set({ fileIconsApplied: applied });
 }
 
 // ---------------------------------------------------------------- Launcher-Fenster
@@ -404,7 +414,9 @@ function registerIpc() {
   ipcMain.handle('settings:get', settingsState);
   ipcMain.handle('settings:set', (_event, patch) => {
     if (!patch || typeof patch !== 'object') return settingsState();
+    const iconsBefore = settings.fileIcons;
     settings.set(patch);
+    if (settings.fileIcons !== iconsBefore) syncFileIcons(true);
     t = i18n.make(settings.language);
     const state = settingsState();
     send('settings:changed', state);
@@ -564,6 +576,7 @@ if (!app.requestSingleInstanceLock()) {
     );
     settings = new Settings(path.join(app.getPath('userData'), 'settings.json'));
     t = i18n.make(settings.language);
+    setTimeout(() => syncFileIcons(false), 4000);
     library = new Library(path.join(app.getPath('userData'), 'library.json'));
     downloads = new Downloads(path.join(app.getPath('userData'), 'downloads.json'));
     downloadManager = new DownloadManager({
