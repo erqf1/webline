@@ -91,9 +91,24 @@ def write_ico(path, images):
     open(path, 'wb').write(head + entries + data)
 
 
+# macOS: electron-builder sucht zu fileAssociations[].icon dieselbe Datei als .icns (gleicher Ordner)
+ICNS = [('ic11', 32), ('ic12', 64), ('ic07', 128), ('ic13', 256), ('ic08', 256), ('ic14', 512), ('ic09', 512), ('ic10', 1024)]
+
+
+def write_icns(path, render):
+    body, cache = b'', {}
+    for typ, size in ICNS:
+        if size not in cache:
+            cache[size] = png(render(size))
+        body += typ.encode('ascii') + struct.pack('>I', len(cache[size]) + 8) + cache[size]
+    open(path, 'wb').write(b'icns' + struct.pack('>I', len(body) + 8) + body)
+
+
 for variant in ('light', 'dark'):
     os.makedirs(os.path.join(OUT, variant), exist_ok=True)
     for name, (label, color) in TYPES.items():
         write_ico(os.path.join(OUT, variant, f'{name}.ico'),
                   [(s, png(page(s, label, color, s >= 48, variant == 'dark'))) for s in (16, 24, 32, 48, 64, 128, 256)])
-print(f'{len(TYPES)} Dateisymbole (hell + dunkel) nach {OUT}')
+for name, (label, color) in TYPES.items():
+    write_icns(os.path.join(OUT, 'light', f'{name}.icns'), lambda s, label=label, color=color: page(s, label, color, s >= 48))
+print(f'{len(TYPES)} Dateisymbole (hell + dunkel, dazu .icns für macOS) nach {OUT}')
