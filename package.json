@@ -1,14 +1,14 @@
 {
   "name": "webcase",
   "productName": "Webline",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
   "desktopName": "webline",
   "scripts": {
     "start": "electron .",
-    "icon": "python tools/make-icon.py",
+    "icon": "node tools/make-icon.js",
     "build": "electron-builder -wlm",
     "build:win": "electron-builder -w",
     "build:linux": "electron-builder -l",
