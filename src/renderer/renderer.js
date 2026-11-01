@@ -426,12 +426,82 @@ function applyTexts() {
   }
 }
 
+// Rauch für den Stil Acryl: weiche Wolken aus nur einer Farbfamilie, bewusst ohne Korn.
+// Gleiche Rechnung wie in Vidline und Clipline, der Weichzeichner läuft mit laufender Summe.
+const cache = new Map();
+
+function boxBlur(px, w, h, r) {
+  const c = 2 * r + 1;
+  const line = new Uint8Array(Math.max(w, h) * 3);
+  const run = (start, len, step) => {
+    for (let i = 0; i < len; i++) {
+      const o = start + i * step;
+      line[i * 3] = px[o];
+      line[i * 3 + 1] = px[o + 1];
+      line[i * 3 + 2] = px[o + 2];
+    }
+    for (let ch = 0; ch < 3; ch++) {
+      let sum = 0;
+      for (let i = -r; i <= r; i++) sum += line[Math.min(len - 1, Math.max(0, i)) * 3 + ch];
+      for (let i = 0; i < len; i++) {
+        px[start + i * step + ch] = sum / c;
+        sum += line[Math.min(len - 1, i + r + 1) * 3 + ch] - line[Math.max(0, i - r) * 3 + ch];
+      }
+    }
+  };
+  for (let pass = 0; pass < 3; pass++) {
+    for (let y = 0; y < h; y++) run(y * w * 4, w, 4);
+    for (let x = 0; x < w; x++) run(x * 4, h, w * 4);
+  }
+}
+
+/** Bild als data-URL für CSS */
+function smokeUrl(hue, dark) {
+  const key = `${hue}-${dark ? 'd' : 'l'}`;
+  if (cache.has(key)) return cache.get(key);
+  const W = 640, H = 360;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = dark ? `hsl(${hue} 9% 15%)` : `hsl(${hue} 12% 91%)`;
+  g.fillRect(0, 0, W, H);
+  let seed = 11;
+  const pick = (a, b) => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return a + (seed >>> 8) % (b - a + 1);
+  };
+  for (let i = 0; i < 11; i++) {
+    const h2 = (hue + pick(-14, 14) + 360) % 360;
+    g.fillStyle = dark ? `hsl(${h2} ${pick(20, 36)}% ${pick(22, 31)}%)` : `hsl(${h2} ${pick(20, 35)}% ${pick(84, 89)}%)`;
+    const rx = pick(60, 175), ry = pick(40, 120);
+    g.beginPath();
+    g.ellipse(pick(-80, W) + rx, pick(-80, H) + ry, rx, ry, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  const img = g.getImageData(0, 0, W, H);
+  boxBlur(img.data, W, H, 55);
+  g.putImageData(img, 0, 0);
+  const url = c.toDataURL('image/png');
+  cache.set(key, url);
+  return url;
+}
+
+// Stil Acryl: Farbton der Webline-Akzentfarbe, hell oder dunkel wie das System
+const prefersDark = matchMedia('(prefers-color-scheme: dark)');
+function applySmoke() {
+  const on = (settings.style || 'standard') === 'acryl';
+  document.documentElement.style.setProperty('--smoke', on ? `url("${smokeUrl(237, prefersDark.matches)}")` : 'none');
+}
+prefersDark.addEventListener('change', applySmoke);
+
 function renderSettings() {
   const lang = $('#language');
   lang.replaceChildren(...Object.entries(I18N.LANGUAGES).map(([code, name]) => el('option', { text: name, attrs: { value: code } })));
   lang.value = settings.language;
   const style = $('#style');
-  style.replaceChildren(...['standard', 'minimal'].map((s) => el('option', { text: t(s === 'minimal' ? 'styleMinimal' : 'styleStandard'), attrs: { value: s } })));
+  const styleNames = { standard: 'styleStandard', minimal: 'styleMinimal', acryl: 'styleAcryl' };
+  style.replaceChildren(...Object.keys(styleNames).map((s) => el('option', { text: t(styleNames[s]), attrs: { value: s } })));
   style.value = settings.style || 'standard';
   // Dateisymbole im Explorer: nur in der installierten Windows-Version
   $('#file-icons-row').hidden = !settings.fileIconsAvailable;
@@ -484,6 +554,7 @@ function applySettings(next) {
   t = I18N.make(settings.language);
   // Stil "Minimal": ruhigere Optik (style.css, Regeln unter :root[data-style="minimal"])
   document.documentElement.dataset.style = settings.style || 'standard';
+  applySmoke();
   applyTexts();
   render();
   renderDownloads();

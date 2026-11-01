@@ -534,3 +534,21 @@ dialog:not([open]) { display: none !important; }
 :root[data-style="minimal"] .dl-icon { background: var(--bg); border-radius: 50%; }
 :root[data-style="minimal"] .dl-bar-fill { background: var(--text); }
 :root[data-style="minimal"] .key-btn.recording { border: 0; background: var(--text); color: var(--bg); }
+
+/* ---------------------------------------------------------------- Stil Acryl */
+:root[data-style="acryl"] {
+  --bg: #1e2026; --panel: rgb(255 255 255 / 0.06); --panel-hover: rgb(255 255 255 / 0.11); --line: rgb(255 255 255 / 0.11);
+  --text: #eff0f5; --muted: #adb1c0; --menu: #272a33; --field: rgb(0 0 0 / 0.28); --shadow: 0 8px 32px rgb(0 0 0 / 0.35);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-style="acryl"] {
+    --bg: #e9eaef; --panel: rgb(255 255 255 / 0.5); --panel-hover: rgb(255 255 255 / 0.8); --line: rgb(0 0 0 / 0.1);
+    --text: #171923; --muted: #5a5e70; --menu: #f6f6fa; --field: rgb(255 255 255 / 0.6); --shadow: 0 8px 32px rgb(30 35 70 / 0.14);
+  }
+}
+:root[data-style="acryl"] body::before { content: ""; position: fixed; inset: -60px; z-index: -1; pointer-events: none;
+  background: var(--smoke, none) center / cover no-repeat; filter: blur(20px); }
+:root[data-style="acryl"] .modal, :root[data-style="acryl"] .toast, :root[data-style="acryl"] .actions { background: var(--menu); }
+:root[data-style="acryl"] .modal input, :root[data-style="acryl"] .set-row select { background: var(--field); }
+:root[data-style="acryl"] .search { background: var(--field); }
+:root[data-style="acryl"] .card:hover { box-shadow: none; transform: none; }

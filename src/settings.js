@@ -5,7 +5,7 @@ const path = require('path');
 const { SHORTCUTS, LANGUAGES } = require('./i18n');
 
 // Sprache, Stil und eigene Tastenkürzel (userData/settings.json). Englisch und Standard-Stil sind die Vorgabe.
-const STYLES = ['standard', 'minimal'];
+const STYLES = ['standard', 'minimal', 'acryl'];
 const FILE_ICONS = ['auto', 'light', 'dark'];  // Dateisymbole im Explorer (Windows): wie Windows, hell, dunkel
 class Settings {
   constructor(file) {

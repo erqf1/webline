@@ -1,7 +1,7 @@
 {
   "name": "webcase",
   "productName": "Webline",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
