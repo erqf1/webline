@@ -1,7 +1,7 @@
 {
   "name": "webcase",
   "productName": "Webline",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
@@ -15,7 +15,7 @@
     "build:mac": "electron-builder -m"
   },
   "devDependencies": {
-    "electron": "^44.4.5",
+    "electron": "43.8.7",
     "electron-builder": "^26.15.3"
   },
   "engines": {
@@ -194,7 +194,10 @@
           ]
         }
       ],
-      "artifactName": "Webline-${version}-mac-${arch}.${ext}"
+      "artifactName": "Webline-${version}-mac-${arch}.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "minimumSystemVersion": "12.0"
     }
   },
   "dependencies": {
