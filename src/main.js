@@ -422,6 +422,9 @@ function registerIpc() {
     downloadManager.clear(!!deleteFiles);
   });
 
+  // "Als Standard-App festlegen"
+  require('./defaults').setupDefaults({ ...require('./shared/default-types'), ipcMain, shell });
+
   // Sprache + Tastenkürzel
   ipcMain.handle('settings:get', settingsState);
   ipcMain.handle('settings:set', (_event, patch) => {

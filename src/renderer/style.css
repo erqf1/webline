@@ -552,3 +552,23 @@ dialog:not([open]) { display: none !important; }
 :root[data-style="acryl"] .modal input, :root[data-style="acryl"] .set-row select { background: var(--field); }
 :root[data-style="acryl"] .search { background: var(--field); }
 :root[data-style="acryl"] .card:hover { box-shadow: none; transform: none; }
+
+/* ---------------------------------------------------------------- Als Standard-App festlegen */
+.modal.defaults-modal { width: min(620px, 94vw); }
+.defaults-intro { margin: 0 0 6px !important; color: var(--text) !important; line-height: 1.5; }
+.defaults-how { margin: 0 0 10px !important; font-size: 12.5px; line-height: 1.5; }
+.defaults-list { display: flex; flex-direction: column; max-height: min(50vh, 380px); overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+.defaults-loading { margin: 0 !important; padding: 16px; text-align: center; }
+.defaults-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 12px; }
+.defaults-row + .defaults-row { border-top: 1px solid var(--line); }
+.defaults-row:hover { background: var(--panel-hover); }
+.defaults-row input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.defaults-name { min-width: 0; display: flex; flex-direction: column; }
+.defaults-name b { font-weight: 600; }
+.defaults-name small { color: var(--muted); font-size: 11.5px; }
+.defaults-now { color: var(--muted); font-size: 12px; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.defaults-now.owned { color: var(--text); }
+.defaults-row.mine .defaults-now { color: var(--accent); font-weight: 600; }
+.defaults-note { margin: 10px 0 0 !important; font-size: 12.5px; }
+.defaults-note.warn { color: var(--danger) !important; }
+.defaults-note.ok { color: var(--accent) !important; }

@@ -136,6 +136,11 @@
       <select id="file-icons"></select>
     </label>
 
+    <div class="set-row">
+      <span id="defaults-label"></span>
+      <button id="defaults-open" class="btn" type="button"></button>
+    </div>
+
     <h3 data-t="shortcuts"></h3>
     <p class="set-hint" data-t="shortcutsHint"></p>
     <div id="shortcut-list" class="shortcut-list"></div>
@@ -144,6 +149,20 @@
     <div class="modal-actions">
       <button id="shortcut-reset" class="btn" type="button" data-t="restoreDefaults"></button>
       <button class="btn primary" type="button" data-close-settings data-t="close"></button>
+    </div>
+  </dialog>
+
+  <dialog id="defaults-modal" class="modal defaults-modal">
+    <div class="modal-head">
+      <h2 id="defaults-title"></h2>
+    </div>
+    <p id="defaults-intro" class="defaults-intro"></p>
+    <p id="defaults-how" class="defaults-how" hidden></p>
+    <div id="defaults-list" class="defaults-list"></div>
+    <p id="defaults-note" class="defaults-note"></p>
+    <div class="modal-actions">
+      <button id="defaults-close" class="btn" type="button"></button>
+      <button id="defaults-apply" class="btn primary" type="button"></button>
     </div>
   </dialog>
 

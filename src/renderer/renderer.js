@@ -508,6 +508,11 @@ function renderSettings() {
   const icons = $('#file-icons');
   icons.replaceChildren(...[['auto', 'fileIconsAuto'], ['light', 'fileIconsLight'], ['dark', 'fileIconsDark']].map(([v, k]) => el('option', { text: t(k), attrs: { value: v } })));
   icons.value = settings.fileIcons || 'auto';
+  // Als Standard-App festlegen (Texte kommen aus dem Hauptprozess)
+  api.defaults.info(settings.language).then((info) => {
+    $('#defaults-label').textContent = info.texts.title;
+    $('#defaults-open').textContent = info.texts.menu;
+  });
 
   const list = $('#shortcut-list');
   list.replaceChildren(
@@ -586,3 +591,85 @@ api.getDownloads().then((initial) => {
   downloadsState = initial;
   renderDownloads();
 });
+
+// ---------------------------------------------------------------- Als Standard-App festlegen
+// Gleiche Logik wie in Textline und Picline (src/defaults.js im Hauptprozess). Vorausgewählt ist nur, was kein
+// anderes W-Software-Programm schon hat; unter Windows bleibt das Fenster offen und hakt live ab.
+const defaultsModal = $('#defaults-modal');
+let defaultsTimer = null;
+async function openDefaults() {
+  const info = await api.defaults.info(settings.language);
+  const T = (k, vars = {}) => Object.entries(vars).reduce((s, [a, b]) => s.split(`{${a}}`).join(String(b)), info.texts[k] || k);
+  const name = info.name;
+  const lang = settings.language;
+  const checks = {};
+  let state = null;
+  const list = $('#defaults-list');
+  const note = $('#defaults-note');
+  const applyBtn = $('#defaults-apply');
+  const closeBtn = $('#defaults-close');
+  const win = api.platform === 'win32';
+  $('#defaults-title').textContent = T('title');
+  $('#defaults-intro').textContent = T('intro', { app: name });
+  $('#defaults-how').hidden = !win;
+  $('#defaults-how').textContent = T('winHow', { app: name });
+  applyBtn.textContent = T(win ? 'openSettings' : 'apply');
+  closeBtn.textContent = T('cancel');
+  note.textContent = '';
+  note.className = 'defaults-note';
+  list.replaceChildren(el('p', { className: 'defaults-loading', text: T('loading') }));
+  const status = (s) => (s.mine ? T('mine', { app: name }) : s.total > 1 && s.done ? T('part', { n: s.done, m: s.total }) : s.current ? T('now', { app: s.current }) : T('nobody'));
+  const pending = () => info.groups.filter((g) => checks[g.id] && !(state.groups.find((x) => x.id === g.id) || {}).mine).map((g) => g.id);
+  const render = () => {
+    list.replaceChildren(...info.groups.map((g) => {
+      const s = state.groups.find((x) => x.id === g.id) || { mine: false };
+      if (checks[g.id] === undefined) checks[g.id] = !s.mine && g.primary && !(s.owner && s.owner !== name);
+      const box = el('input', { attrs: { type: 'checkbox' } });
+      box.checked = s.mine || checks[g.id];
+      box.disabled = s.mine;
+      box.addEventListener('change', () => {
+        checks[g.id] = box.checked;
+        applyBtn.disabled = !pending().length;
+      });
+      const hint = g.exts.map((e) => `.${e}`).join(' ');
+      return el('label', { className: `defaults-row${s.mine ? ' mine' : ''}` }, box,
+        el('span', { className: 'defaults-name' }, el('b', { text: g.label[lang] || g.label.en }), el('small', { text: hint })),
+        el('span', { className: `defaults-now${s.owner && s.owner !== name ? ' owned' : ''}`, text: status(s) }));
+    }));
+    applyBtn.disabled = !pending().length;
+  };
+  const refresh = async () => {
+    state = await api.defaults.state();
+    render();
+  };
+  applyBtn.onclick = async () => {
+    const ids = pending();
+    if (!ids.length) return;
+    applyBtn.disabled = true;
+    if (win && state.registered === '') {
+      note.textContent = T('notRegistered', { app: name });
+      note.className = 'defaults-note warn';
+    }
+    const r = await api.defaults.apply(ids);
+    if (!r.ok) {
+      note.textContent = `${T('failed', { e: r.error || '?' })} ${api.platform === 'darwin' ? T('macHand', { app: name }) : ''}`;
+      note.className = 'defaults-note warn';
+    } else if (r.settings) {
+      closeBtn.textContent = T('close');
+      clearInterval(defaultsTimer);
+      defaultsTimer = setInterval(() => (defaultsModal.open ? refresh() : clearInterval(defaultsTimer)), 2500);
+    } else {
+      await refresh();
+      note.textContent = T('done', { app: name, n: state.groups.filter((g) => g.mine).length });
+      note.className = 'defaults-note ok';
+      closeBtn.textContent = T('close');
+    }
+  };
+  closeBtn.onclick = () => defaultsModal.close();
+  defaultsModal.onclose = () => clearInterval(defaultsTimer);
+  if (settingsModal.open) settingsModal.close();
+  defaultsModal.showModal();
+  await refresh();
+}
+$('#defaults-open').addEventListener('click', openDefaults);
+window.__openDefaults = openDefaults;
