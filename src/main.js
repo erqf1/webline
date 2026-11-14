@@ -5,7 +5,7 @@ const fileIcons = require('./fileicons');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { Library, isSupportedFile, fileKind, idFor, EXTENSIONS } = require('./store');
+const { Library, isSupportedFile, fileKind, idFor, EXTENSIONS, normalizeUrl, nameForUrl, titleFromHtml, isWebItem, webId } = require('./store');
 const { Downloads } = require('./downloads');
 const { DownloadManager } = require('./download-manager');
 const { Settings } = require('./settings');
@@ -53,7 +53,11 @@ async function exists(file) {
 
 async function getState() {
   const items = await Promise.all(
-    library.items.map(async (item) => ({ ...item, kind: fileKind(item.path), missing: !(await exists(item.path)) }))
+    library.items.map(async (item) =>
+      isWebItem(item)
+        ? { ...item, kind: 'web', missing: false }
+        : { ...item, kind: fileKind(item.path), missing: !(await exists(item.path)) }
+    )
   );
   return { items, running: [...programWins.keys()] };
 }
@@ -115,6 +119,78 @@ async function addPaths(paths) {
   await broadcast();
 }
 
+// ---------------------------------------------------------------- Web-Programme
+
+/** <title> der Seite holen (höchstens ein paar Sekunden, sonst Adresse als Name) */
+async function fetchTitle(url) {
+  const { net } = require('electron');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const res = await net.fetch(url, { signal: ctrl.signal, redirect: 'follow' });
+    if (!res.ok || !/html/i.test(res.headers.get('content-type') ?? 'text/html')) return '';
+    const reader = res.body?.getReader();
+    if (!reader) return titleFromHtml(await res.text());
+    let text = '';
+    while (text.length < 65536) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += Buffer.from(value).toString('utf8');
+      if (/<\/title>/i.test(text)) break;
+    }
+    reader.cancel().catch(() => {});
+    return titleFromHtml(text);
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Adresse hinzufügen; liefert { ok, id } */
+async function addUrl(input, { quiet = false } = {}) {
+  const url = normalizeUrl(input);
+  if (!url) {
+    if (!quiet) toast(t('invalidUrl'), 'warn');
+    return { ok: false };
+  }
+  const known = library.find(webId(url));
+  if (known) {
+    if (!quiet) toast(t('alreadyThere', { n: 1 }), 'warn');
+    return { ok: true, id: known.id };
+  }
+  const name = (await fetchTitle(url)) || nameForUrl(url);
+  const { id } = library.addUrl(url, name);
+  if (!quiet) toast(t('addedOne'), 'ok');
+  await broadcast();
+  return { ok: true, id };
+}
+
+/** Desktop-Verknüpfung, die das Web-Programm direkt startet (wie Doppelklick auf eine HTML-Datei) */
+async function createShortcut(item) {
+  const desktop = app.getPath('desktop');
+  const safe = item.name.replace(/[<>:"/\\|?*\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Webline';
+  if (process.platform === 'win32') {
+    const target = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+    const ok = shell.writeShortcutLink(path.join(desktop, `${safe}.lnk`), {
+      target,
+      args: process.defaultApp ? `"${path.resolve(process.argv[1] ?? '.')}" "${item.url}"` : `"${item.url}"`,
+      description: item.url,
+      icon: target,
+      iconIndex: 0,
+    });
+    return ok;
+  }
+  if (process.platform === 'linux') {
+    const exec = process.env.APPIMAGE || process.execPath;
+    const body = `[Desktop Entry]\nType=Application\nName=${safe}\nExec="${exec}" "${item.url}"\nIcon=webline\nTerminal=false\n`;
+    const file = path.join(desktop, `${safe}.desktop`);
+    await fs.promises.writeFile(file, body, { mode: 0o755 });
+    return true;
+  }
+  return false;
+}
+
 /** Dateien aus Kommandozeilenargumenten (z. B. "Öffnen mit" oder Drag & Drop auf die .exe). */
 function htmlArgs(argv) {
   const args = process.defaultApp ? argv.slice(2) : argv.slice(1);
@@ -127,6 +203,25 @@ function htmlArgs(argv) {
  * Fenster, ohne den Umweg über das Menü. Das Menü kommt nur, wenn etwas nicht klappt.
  */
 async function launchArgs(files) {
+  // Web-Adressen (z. B. aus einer Desktop-Verknüpfung) starten genauso direkt wie Dateien
+  const urls = files.filter((f) => /^https?:\/\//i.test(f));
+  files = files.filter((f) => !/^https?:\/\//i.test(f));
+  const webErrors = [];
+  for (const u of urls) {
+    const res = await addUrl(u, { quiet: true });
+    if (!res.ok) webErrors.push(t('invalidUrl'));
+    else {
+      const r = await launch(res.id);
+      if (!r.ok) webErrors.push(r.error);
+    }
+  }
+  if (urls.length && !files.length) {
+    if (webErrors.length) {
+      showLauncher();
+      for (const message of webErrors) await notify(message, 'error');
+    }
+    return;
+  }
   const valid = [];
   for (const file of files) if (await isSupportedFile(file)) valid.push(file);
 
@@ -165,20 +260,21 @@ async function launch(id) {
   launching.add(id);
 
   try {
-    if (!(await exists(item.path))) {
+    const web = isWebItem(item);
+    if (!web && !(await exists(item.path))) {
       await broadcast();
       return { ok: false, error: t('fileNotFound') };
     }
 
     // PDF: eingebauter Chromium-Viewer (Blättern, Zoom, Suchen, Drucken). Bilder, Videos und Musik zeigt Chromium
     // selbst an. Text, Markdown, JSON und CSV laufen über den eigenen Betrachter (viewer/).
-    const kind = fileKind(item.path) ?? 'html';
+    const kind = web ? 'web' : fileKind(item.path) ?? 'html';
     const win = new BrowserWindow({
       title: item.name,
       // Startet maximiert statt im echten Vollbild - fühlt sich wie ein normales
       // Programmfenster an. Vollbild bleibt über F11 einen Tastendruck entfernt.
       show: false,
-      backgroundColor: '#000000',
+      backgroundColor: web ? '#ffffff' : '#000000',
       autoHideMenuBar: true,
       icon: ICON,
       webPreferences: {
@@ -189,7 +285,7 @@ async function launch(id) {
         nodeIntegration: false,
         sandbox: true,
         spellcheck: false,
-        plugins: kind === 'pdf',
+        plugins: kind === 'pdf' || web,
         preload: kind === 'text' ? VIEWER_PRELOAD : undefined,
       },
     });
@@ -211,8 +307,19 @@ async function launch(id) {
       }
     });
 
-    const originalUrl = kind === 'text' ? pathToFileURL(VIEWER_PAGE).href : pathToFileURL(item.path).href;
-    attachProgramBehavior(win, originalUrl, item.id);
+    const originalUrl = web ? item.url : kind === 'text' ? pathToFileURL(VIEWER_PAGE).href : pathToFileURL(item.path).href;
+    attachProgramBehavior(win, originalUrl, item.id, web);
+    if (web) {
+      // Seite nicht erreichbar (offline, falsche Adresse): einfache Meldung statt weißer Fläche
+      win.webContents.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
+        if (!isMainFrame || code === -3) return; // -3 = abgebrochen (z. B. Download)
+        const html = `<!doctype html><meta charset="utf-8"><body style="font:16px system-ui;margin:40px;color:#333">`
+          + `<h2>${t('webUnreachable')}</h2><p>${String(failedUrl).replace(/[<>&"]/g, '')}</p><p style="color:#888">${String(desc).replace(/[<>&"]/g, '')}</p>`
+          + `<p><button onclick="location.href='${String(originalUrl).replace(/['<>&"\\]/g, '')}'">${t('retry')}</button></p></body>`;
+        win.webContents.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      });
+      if (!win.isVisible()) setTimeout(() => { if (!win.isDestroyed() && !win.isVisible()) { win.maximize(); win.show(); } }, 3000);
+    }
     win.loadURL(originalUrl);
     await broadcast();
     return { ok: true };
@@ -221,15 +328,29 @@ async function launch(id) {
   }
 }
 
-function attachProgramBehavior(win, originalUrl, programId) {
+function attachProgramBehavior(win, originalUrl, programId, web = false) {
   const { webContents } = win;
+  // Web-Programme: die eigene Seite (und wohin sie beim ersten Laden umleitet) bleibt im Fenster,
+  // fremde Seiten öffnen im Browser - wie bei HTML-Dateien.
+  const origins = new Set();
+  const originOf = (u) => {
+    try {
+      return new URL(u).origin;
+    } catch {
+      return '';
+    }
+  };
+  if (web) origins.add(originOf(originalUrl));
+  const isOwn = (u) => web && (origins.has(originOf(u)) || /^data:/i.test(u));
+  let firstLoad = true;
 
   // Links ins Web öffnen im Standardbrowser statt das "Programm" zu ersetzen.
   const openExternal = (url) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
   };
   webContents.setWindowOpenHandler(({ url }) => {
-    openExternal(url);
+    if (isOwn(url)) webContents.loadURL(url);
+    else openExternal(url);
     return { action: 'deny' };
   });
 
@@ -240,6 +361,11 @@ function attachProgramBehavior(win, originalUrl, programId) {
   // committet (did-navigate mit einer fremden http(s)-Adresse: es war also doch
   // eine echte Seite), springen wir zurück und öffnen sie extern.
   webContents.on('did-navigate', (event, url) => {
+    if (web && firstLoad) {
+      firstLoad = false;
+      origins.add(originOf(url));
+    }
+    if (isOwn(url)) return;
     if (url !== originalUrl && /^https?:\/\//i.test(url)) {
       openExternal(url);
       webContents.loadURL(originalUrl);
@@ -364,6 +490,21 @@ function registerIpc() {
     if (Array.isArray(paths)) await addPaths(paths.filter((p) => typeof p === 'string'));
   });
 
+  ipcMain.handle('library:add-url', async (_event, url) => addUrl(String(url ?? '')));
+
+  ipcMain.handle('app:shortcut', async (_event, id) => {
+    const item = library.find(String(id));
+    if (!item || !isWebItem(item)) return false;
+    let ok = false;
+    try {
+      ok = await createShortcut(item);
+    } catch {
+      ok = false;
+    }
+    toast(ok ? t('shortcutCreated') : t('shortcutFailed'), ok ? 'ok' : 'warn');
+    return ok;
+  });
+
   ipcMain.handle('library:remove', async (_event, id) => {
     library.remove(String(id));
     await broadcast();
@@ -403,7 +544,8 @@ function registerIpc() {
 
   ipcMain.handle('app:reveal', (_event, id) => {
     const item = library.find(String(id));
-    if (item) shell.showItemInFolder(item.path);
+    if (item && isWebItem(item)) shell.openExternal(item.url);
+    else if (item) shell.showItemInFolder(item.path);
   });
 
   ipcMain.handle('downloads:get', getDownloadsState);

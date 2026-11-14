@@ -42,11 +42,17 @@ Beim ersten Start ggf. Rechtsklick → „Öffnen“.
 | --- | --- |
 | HTML-Datei starten | Doppelklick auf die Datei, oder „Öffnen mit“ → Webline (nach der Installation) |
 | Programm zur Liste hinzufügen | **HTML hinzufügen** (Strg+O, auf dem Mac ⌘O) oder Datei ins Fenster ziehen |
+| Webseite als Programm | **Webseite hinzufügen** und Adresse eintippen, z. B. `mert.win/help` (ohne `https://` geht auch) |
+| Webseite vom Desktop starten | an der Karte **Verknüpfung auf dem Desktop** – startet die Seite per Doppelklick direkt in ihrem Fenster |
 | Aus der Liste starten | Karte anklicken (oder Enter) |
 | Umbenennen / Entfernen | Symbole oben rechts an der Karte (oder F2 / Entf) |
 | Suchen | Strg+F (⌘F) |
 
 Der Name eines Programms ist der `<title>` der HTML-Datei (sonst der Dateiname) und lässt sich ändern. Entfernen löscht nur den Eintrag, nie die Datei.
+
+### Webseiten als Programm
+
+Jede Webseite kann wie eine HTML-Datei laufen: **Webseite hinzufügen** → Adresse eintippen, z. B. `mert.win/help`. Der Name kommt aus dem `<title>` der Seite und lässt sich ändern. Sie startet in ihrem eigenen Fenster ohne Adressleiste, mit eigenem dauerhaftem Speicher (Anmeldungen bleiben erhalten), Downloads und Tastenkürzel wie bei HTML-Programmen. Links innerhalb derselben Seite bleiben im Fenster, fremde Seiten öffnen im Browser. Über die Karte gibt es eine **Desktop-Verknüpfung** (Windows, Linux) – Webline lässt sich auch direkt mit einer Adresse starten: `Webline https://mert.win/help`.
 
 ### Zwei Wege, die App zu starten
 

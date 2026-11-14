@@ -48,6 +48,51 @@ async function isSupportedFile(file) {
   }
 }
 
+/** <title> aus HTML-Text (oder ''). */
+function titleFromHtml(text) {
+  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(String(text ?? ''));
+  const title = match && decodeEntities(match[1]).replace(/\s+/g, ' ').trim();
+  return title ? title.slice(0, NAME_LIMIT) : '';
+}
+
+/**
+ * Web-Programme: "mert.win/help" -> "https://mert.win/help". Ohne Schema wird https angenommen.
+ * Nur http(s); null, wenn es keine gültige Adresse ist.
+ */
+function normalizeUrl(input) {
+  let s = String(input ?? '').trim();
+  if (!s || /\s/.test(s)) return null;
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) s = `https://${s}`;
+  let u;
+  try {
+    u = new URL(s);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  const host = u.hostname;
+  if (!host || (!host.includes('.') && host !== 'localhost' && !host.startsWith('['))) return null;
+  u.hash = '';
+  return u.href;
+}
+
+/** Name, wenn die Seite keinen <title> hat: "mert.win/help" */
+function nameForUrl(url) {
+  try {
+    const u = new URL(url);
+    return `${u.host}${u.pathname.replace(/\/+$/, '')}`.slice(0, NAME_LIMIT) || u.host;
+  } catch {
+    return String(url).slice(0, NAME_LIMIT);
+  }
+}
+
+const isWebItem = (item) => typeof item?.url === 'string';
+
+/** ID eines Web-Programms: ohne http/https, damit "mert.win/help" und "http://mert.win/help" dasselbe sind */
+function webId(url) {
+  return idFor(`web:${String(url).replace(/^https?:\/\//i, '')}`);
+}
+
 /** Liest den <title> aus dem Anfang der Datei; Fallback ist der Dateiname. */
 async function readTitle(file) {
   const fallback = path.basename(file, path.extname(file));
@@ -146,6 +191,17 @@ class Library {
     return { added, duplicates };
   }
 
+  /** Web-Programm (Adresse statt Datei). Die ID hängt an der Adresse - wie bei Dateien bleibt der
+   *  Speicherbereich (Anmeldung, localStorage ...) erhalten, wenn man es entfernt und wieder hinzufügt. */
+  addUrl(url, name) {
+    const id = webId(url);
+    if (this.find(id)) return { added: 0, duplicates: 1, id };
+    const clean = String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, NAME_LIMIT) || nameForUrl(url);
+    this.items.push({ id, path: url, url, name: clean, addedAt: Date.now(), lastLaunched: null });
+    this._save();
+    return { added: 1, duplicates: 0, id };
+  }
+
   remove(id) {
     const before = this.items.length;
     this.items = this.items.filter((i) => i.id !== id);
@@ -168,4 +224,4 @@ class Library {
   }
 }
 
-module.exports = { Library, isSupportedFile, fileKind, idFor, EXTENSIONS };
+module.exports = { Library, isSupportedFile, fileKind, idFor, EXTENSIONS, normalizeUrl, nameForUrl, titleFromHtml, isWebItem, webId };

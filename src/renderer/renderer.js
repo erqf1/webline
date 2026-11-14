@@ -22,6 +22,8 @@ const ICONS = {
   resume: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13L19 12z"/></svg>',
   cancel: '<svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>',
   retry: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>',
+  globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+  link: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m10 8 4 2.5-4 2.5z"/></svg>',
 };
 
 const KIND_ICONS = {
@@ -29,6 +31,7 @@ const KIND_ICONS = {
   video: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>',
   audio: '<svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>',
   text: '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
+  web: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
 };
 
 let state = { items: [], running: [] };
@@ -169,7 +172,7 @@ function card(item) {
 
   // HTML-Programme: Anfangsbuchstabe auf eigener Farbe. Andere Dateien: feste Farbe + Art (PDF, Bild …)
   const kind = item.kind && item.kind !== 'html' ? item.kind : null;
-  const label = { pdf: 'PDF', image: '', video: '', audio: '', text: '' }[kind];
+  const label = { pdf: 'PDF', image: '', video: '', audio: '', text: '', web: '' }[kind];
   const tile = el('div', { className: `tile${kind ? ` kind-${kind}` : ''}`, text: kind ? label : [...item.name][0] ?? '?' });
   if (kind && !label) tile.innerHTML = KIND_ICONS[kind]; // statische Konstante
   if (!kind) tile.style.setProperty('--h', hueFor(item.id));
@@ -181,7 +184,7 @@ function card(item) {
     'div',
     { className: 'meta' },
     el('h3', { className: 'name', text: item.name, attrs: { title: item.name } }),
-    el('p', { className: 'path', text: shortPath(item.path), attrs: { title: item.path } })
+    el('p', { className: 'path', text: item.url ? item.url.replace(/^https?:\/\//i, '').replace(/\/$/, '') : shortPath(item.path), attrs: { title: item.path } })
   );
   if (item.missing) meta.append(el('span', { className: 'badge missing', text: t('fileMissing') }));
   else if (running) meta.append(el('span', { className: 'badge running', text: t('running') }));
@@ -191,7 +194,9 @@ function card(item) {
     'div',
     { className: 'actions' },
     iconButton('edit', t('rename'), () => rename(item)),
-    iconButton('folder', t('showInFolder'), () => api.reveal(item.id)),
+    ...(item.url
+      ? [iconButton('link', t('desktopShortcut'), () => api.shortcut(item.id)), iconButton('globe', t('openInBrowser'), () => api.reveal(item.id))]
+      : [iconButton('folder', t('showInFolder'), () => api.reveal(item.id))]),
     iconButton('trash', t('removeFromList'), () => remove(item), 'danger')
   );
 
@@ -325,6 +330,12 @@ function renderDownloads() {
 // ---------------------------------------------------------------- Verdrahtung
 
 $('#add').addEventListener('click', () => api.pick());
+$('#add-web').addEventListener('click', addWeb);
+
+async function addWeb() {
+  const url = await ask({ title: t('addWeb'), text: t('addWebText'), input: '', confirm: t('addWebOk') });
+  if (url) await api.addUrl(url);
+}
 $('#empty-add').addEventListener('click', () => api.pick());
 $('#search').addEventListener('input', (event) => {
   query = event.target.value;

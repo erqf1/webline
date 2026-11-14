@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('launcher', {
   platform: process.platform,
   getState: () => ipcRenderer.invoke('state:get'),
   pick: () => ipcRenderer.invoke('library:pick'),
+  addUrl: (url) => ipcRenderer.invoke('library:add-url', url),
+  shortcut: (id) => ipcRenderer.invoke('app:shortcut', id),
   remove: (id) => ipcRenderer.invoke('library:remove', id),
   rename: (id, name) => ipcRenderer.invoke('library:rename', id, name),
   launch: (id) => ipcRenderer.invoke('app:launch', id),

@@ -456,6 +456,7 @@ dialog:not([open]) { display: none !important; }
 .tile.kind-video { background: linear-gradient(135deg, #ff4e7a, #a3124a); }
 .tile.kind-audio { background: linear-gradient(135deg, #ffad42, #e0570b); }
 .tile.kind-text { background: linear-gradient(135deg, #8f8f8f, #4b4b4b); }
+.tile.kind-web { background: linear-gradient(135deg, #3ccfe0, #1a6fb5); }
 .badge.kind { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
 
 /* ---------------------------------------------------------------- Stil "Minimal" (Einstellungen -> Stil)
