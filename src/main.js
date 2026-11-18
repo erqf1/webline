@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell, nativeImage, screen } = require('electron');
 const fileIcons = require('./fileicons');
 const fs = require('fs');
 const path = require('path');
@@ -51,12 +51,23 @@ async function exists(file) {
   }
 }
 
+function iconDataUrl(item) {
+  if (!item.icon) return null;
+  try {
+    const img = nativeImage.createFromPath(item.icon);
+    if (img.isEmpty()) return null;
+    return img.resize({ width: 112, height: 112, quality: 'best' }).toDataURL();
+  } catch {
+    return null;
+  }
+}
+
 async function getState() {
   const items = await Promise.all(
     library.items.map(async (item) =>
       isWebItem(item)
-        ? { ...item, kind: 'web', missing: false }
-        : { ...item, kind: fileKind(item.path), missing: !(await exists(item.path)) }
+        ? { ...item, kind: 'web', missing: false, iconData: iconDataUrl(item) }
+        : { ...item, kind: fileKind(item.path), missing: !(await exists(item.path)), iconData: iconDataUrl(item) }
     )
   );
   return { items, running: [...programWins.keys()] };
@@ -166,6 +177,126 @@ async function addUrl(input, { quiet = false } = {}) {
   return { ok: true, id };
 }
 
+// ---------------------------------------------------------------- Eigene Symbole
+
+const iconDir = () => path.join(app.getPath('userData'), 'icons');
+
+/** Bild (PNG/JPG/WebP/ICO/SVG …) als 256-px-PNG unter userData/icons/<id>.png ablegen */
+async function storeIcon(item, img) {
+  if (!img || img.isEmpty()) return false;
+  const size = img.getSize();
+  const side = Math.max(size.width, size.height) || 1;
+  const scaled = side === 256 ? img : img.resize({ width: Math.round(size.width * 256 / side), height: Math.round(size.height * 256 / side), quality: 'best' });
+  await fs.promises.mkdir(iconDir(), { recursive: true });
+  const file = path.join(iconDir(), `${item.id.replace(/[^a-z0-9_-]/gi, '_')}.png`);
+  await fs.promises.writeFile(file, scaled.toPNG());
+  library.setIcon(item.id, file);
+  // .ico für Windows-Verknüpfungen gleich mitschreiben
+  if (process.platform === 'win32') await fs.promises.writeFile(file.replace(/\.png$/, '.ico'), pngToIco(squareIcon(scaled).toPNG()));
+  return true;
+}
+
+/** auf ein quadratisches 256er-Bild bringen (transparent aufgefüllt) */
+function squareIcon(img) {
+  const { width, height } = img.getSize();
+  if (width === height) return img.resize({ width: 256, height: 256, quality: 'best' });
+  const side = Math.max(width, height);
+  const src = img.toBitmap();
+  const out = Buffer.alloc(side * side * 4);
+  const ox = Math.floor((side - width) / 2), oy = Math.floor((side - height) / 2);
+  for (let y = 0; y < height; y++) src.copy(out, ((y + oy) * side + ox) * 4, y * width * 4, (y + 1) * width * 4);
+  return nativeImage.createFromBitmap(out, { width: side, height: side }).resize({ width: 256, height: 256, quality: 'best' });
+}
+
+/** ICO-Datei mit einem PNG-Eintrag (Windows Vista+ liest PNG in ICO) */
+function pngToIco(png) {
+  const head = Buffer.alloc(22);
+  head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(1, 4);
+  head.writeUInt8(0, 6); head.writeUInt8(0, 7); head.writeUInt8(0, 8); head.writeUInt8(0, 9);
+  head.writeUInt16LE(1, 10); head.writeUInt16LE(32, 12); head.writeUInt32LE(png.length, 14); head.writeUInt32LE(22, 18);
+  return Buffer.concat([head, png]);
+}
+
+/** Symbol der Webseite holen (größtes passendes: apple-touch-icon, icon-Links, /favicon.ico) */
+async function fetchSiteIcon(url) {
+  const { net } = require('electron');
+  const get = async (u, ms = 7000) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await net.fetch(u, { signal: ctrl.signal, redirect: 'follow' });
+      return res.ok ? res : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const candidates = [];
+  const page = await get(url);
+  if (page && /html/i.test(page.headers.get('content-type') ?? 'text/html')) {
+    const html = (await page.text()).slice(0, 300000);
+    for (const m of html.matchAll(/<link\b[^>]*>/gi)) {
+      const tag = m[0];
+      const rel = /rel\s*=\s*["']?([^"'>]+)/i.exec(tag)?.[1]?.toLowerCase() ?? '';
+      const href = /href\s*=\s*["']?([^"' >]+)/i.exec(tag)?.[1];
+      if (!href || !/icon/.test(rel)) continue;
+      const sizes = /sizes\s*=\s*["']?(\d+)/i.exec(tag)?.[1];
+      const score = (rel.includes('apple-touch') ? 180 : 0) + (sizes ? Number(sizes) : 32) + (/\.svg/i.test(href) ? 100 : 0);
+      try { candidates.push({ u: new URL(href, page.url || url).href, score }); } catch {}
+    }
+  }
+  try { candidates.push({ u: new URL('/favicon.ico', url).href, score: 1 }); } catch {}
+  candidates.sort((a, b) => b.score - a.score);
+  for (const c of candidates) {
+    const res = await get(c.u);
+    if (!res) continue;
+    const buf = Buffer.from(await res.arrayBuffer());
+    let img = nativeImage.createFromBuffer(buf);
+    if (img.isEmpty() && /svg/i.test(res.headers.get('content-type') ?? c.u)) {
+      img = nativeImage.createFromDataURL(`data:image/svg+xml;base64,${buf.toString('base64')}`);
+    }
+    if (!img.isEmpty()) return img;
+  }
+  return null;
+}
+
+async function changeIcon(id, mode) {
+  const item = library.find(id);
+  if (!item) return { ok: false };
+  if (mode === 'reset') {
+    library.setIcon(id, null);
+    await broadcast();
+    return { ok: true };
+  }
+  let img = null;
+  if (mode === 'site' && isWebItem(item)) {
+    img = await fetchSiteIcon(item.url);
+    if (!img) { toast(t('iconSiteMissing'), 'warn'); return { ok: false }; }
+  } else {
+    const res = await dialog.showOpenDialog(launcherWin, {
+      title: t('chooseIcon'),
+      properties: ['openFile'],
+      filters: [{ name: t('images'), extensions: ['png', 'jpg', 'jpeg', 'webp', 'ico', 'bmp', 'gif', 'svg'] }],
+    });
+    if (res.canceled || !res.filePaths[0]) return { ok: false };
+    const f = res.filePaths[0];
+    img = /\.svg$/i.test(f)
+      ? nativeImage.createFromDataURL(`data:image/svg+xml;base64,${(await fs.promises.readFile(f)).toString('base64')}`)
+      : nativeImage.createFromPath(f);
+    if (img.isEmpty()) { toast(t('iconUnreadable'), 'warn'); return { ok: false }; }
+  }
+  const ok = await storeIcon(item, img);
+  if (ok) {
+    // offenes Fenster bekommt das Symbol sofort
+    const win = programWins.get(id);
+    if (win && !win.isDestroyed()) win.setIcon(library.find(id).icon);
+    toast(t('iconChanged'), 'ok');
+  }
+  await broadcast();
+  return { ok };
+}
+
 /** Desktop-Verknüpfung, die das Web-Programm direkt startet (wie Doppelklick auf eine HTML-Datei) */
 async function createShortcut(item) {
   const desktop = app.getPath('desktop');
@@ -176,14 +307,14 @@ async function createShortcut(item) {
       target,
       args: process.defaultApp ? `"${path.resolve(process.argv[1] ?? '.')}" "${item.url}"` : `"${item.url}"`,
       description: item.url,
-      icon: target,
+      icon: item.icon && fs.existsSync(item.icon.replace(/\.png$/, '.ico')) ? item.icon.replace(/\.png$/, '.ico') : target,
       iconIndex: 0,
     });
     return ok;
   }
   if (process.platform === 'linux') {
     const exec = process.env.APPIMAGE || process.execPath;
-    const body = `[Desktop Entry]\nType=Application\nName=${safe}\nExec="${exec}" "${item.url}"\nIcon=webline\nTerminal=false\n`;
+    const body = `[Desktop Entry]\nType=Application\nName=${safe}\nExec="${exec}" "${item.url}"\nIcon=${item.icon || 'webline'}\nTerminal=false\n`;
     const file = path.join(desktop, `${safe}.desktop`);
     await fs.promises.writeFile(file, body, { mode: 0o755 });
     return true;
@@ -269,14 +400,21 @@ async function launch(id) {
     // PDF: eingebauter Chromium-Viewer (Blättern, Zoom, Suchen, Drucken). Bilder, Videos und Musik zeigt Chromium
     // selbst an. Text, Markdown, JSON und CSV laufen über den eigenen Betrachter (viewer/).
     const kind = web ? 'web' : fileKind(item.path) ?? 'html';
+    // Gleich in Arbeitsbereich-Größe anlegen: Seiten, die beim Laden ihre Höhe messen (100vh,
+    // Scroll-Snap, Scroll-Animationen), rechneten sonst mit dem kleinen Startfenster und scrollten danach falsch.
+    const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
     const win = new BrowserWindow({
       title: item.name,
+      x: area.x,
+      y: area.y,
+      width: area.width,
+      height: area.height,
       // Startet maximiert statt im echten Vollbild - fühlt sich wie ein normales
       // Programmfenster an. Vollbild bleibt über F11 einen Tastendruck entfernt.
       show: false,
       backgroundColor: web ? '#ffffff' : '#000000',
       autoHideMenuBar: true,
-      icon: ICON,
+      icon: item.icon && fs.existsSync(item.icon) ? item.icon : ICON,
       webPreferences: {
         // Jedes Programm hat seinen eigenen, dauerhaften Speicherbereich,
         // sonst würden sich alle file://-Seiten localStorage & Co. teilen.
@@ -341,7 +479,9 @@ function attachProgramBehavior(win, originalUrl, programId, web = false) {
     }
   };
   if (web) origins.add(originOf(originalUrl));
-  const isOwn = (u) => web && (origins.has(originOf(u)) || /^data:/i.test(u));
+  // Mit F6 vorübergehend geöffnete Adressen (gelten nur, bis das Fenster zu ist)
+  const tempOrigins = new Set();
+  const isOwn = (u) => (web && (origins.has(originOf(u)) || /^data:/i.test(u))) || tempOrigins.has(originOf(u));
   let firstLoad = true;
 
   // Links ins Web öffnen im Standardbrowser statt das "Programm" zu ersetzen.
@@ -366,6 +506,7 @@ function attachProgramBehavior(win, originalUrl, programId, web = false) {
       origins.add(originOf(url));
     }
     if (isOwn(url)) return;
+    if (!web && /^file:/i.test(url)) return;
     if (url !== originalUrl && /^https?:\/\//i.test(url)) {
       openExternal(url);
       webContents.loadURL(originalUrl);
@@ -388,9 +529,68 @@ function attachProgramBehavior(win, originalUrl, programId, web = false) {
     else if (action === 'devtools') webContents.toggleDevTools();
     else if (action === 'downloads') downloadManager.open(programId, 'toggle');
     else if (action === 'print') printProgram(win);
+    else if (action === 'editUrl') editUrlTemporarily(win, tempOrigins);
+    else if (action === 'back') goBack(win);
     else return;
     event.preventDefault();
   });
+  // Maus-Zurück-Taste (Windows/Linux) wie im Browser
+  win.on('app-command', (_e, cmd) => {
+    if (cmd === 'browser-backward') goBack(win);
+    else if (cmd === 'browser-forward' && webContents.navigationHistory.canGoForward()) webContents.navigationHistory.goForward();
+  });
+}
+
+function goBack(win) {
+  const h = win.webContents.navigationHistory;
+  if (h.canGoBack()) h.goBack();
+}
+
+/**
+ * F6: Adresse dieses Fensters vorübergehend ändern (z. B. eine Unterseite oder eine andere Seite).
+ * Gilt nur in diesem Fenster, bis es geschlossen wird oder man zurückgeht - das gespeicherte
+ * Programm behält seine Adresse. Das Eingabefeld liegt in einem geschlossenen Shadow-DOM über der Seite.
+ */
+async function editUrlTemporarily(win, tempOrigins) {
+  if (win.isDestroyed()) return;
+  const wc = win.webContents;
+  const current = wc.getURL().startsWith('data:') ? '' : wc.getURL();
+  const labels = { title: t('editUrlTitle'), hint: t('editUrlHint'), go: t('editUrlGo') };
+  const js = `(() => new Promise((resolve) => {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;inset:0;z-index:2147483647';
+    const root = host.attachShadow({ mode: 'closed' });
+    root.innerHTML = '<style>'
+      + '.bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;font:14px system-ui,sans-serif}'
+      + '.box{background:#1d1b26;color:#eee;border:1px solid #3a3650;border-radius:12px;padding:16px;width:min(720px,90vw);box-shadow:0 12px 40px rgba(0,0,0,.45)}'
+      + 'h2{margin:0 0 4px;font-size:15px}p{margin:0 0 10px;color:#a9a5bf;font-size:12px}'
+      + '.row{display:flex;gap:8px}input{flex:1;font:14px system-ui;padding:9px 11px;border-radius:8px;border:1px solid #4b4666;background:#13121a;color:#fff;outline:none}'
+      + 'input:focus{border-color:#7c6cf0}button{font:14px system-ui;padding:9px 14px;border-radius:8px;border:0;background:#6d5ce8;color:#fff;cursor:pointer}'
+      + '</style><div class="bg"><div class="box"><h2></h2><p></p><div class="row"><input spellcheck="false"><button></button></div></div></div>';
+    root.querySelector('h2').textContent = ${JSON.stringify(labels.title)};
+    root.querySelector('p').textContent = ${JSON.stringify(labels.hint)};
+    const btn = root.querySelector('button'); btn.textContent = ${JSON.stringify(labels.go)};
+    const input = root.querySelector('input'); input.value = ${JSON.stringify(current)};
+    const done = (v) => { host.remove(); resolve(v); };
+    const stop = (e) => e.stopPropagation();
+    for (const ev of ['keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'click', 'wheel', 'pointerdown']) host.addEventListener(ev, stop);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(input.value); if (e.key === 'Escape') done(null); });
+    btn.addEventListener('click', () => done(input.value));
+    root.querySelector('.bg').addEventListener('click', (e) => { if (e.target.classList.contains('bg')) done(null); });
+    (document.body || document.documentElement).appendChild(host);
+    setTimeout(() => { input.focus(); input.select(); }, 0);
+  }))()`;
+  let value = null;
+  try {
+    value = await wc.executeJavaScript(js, true);
+  } catch {
+    return;
+  }
+  if (value == null || win.isDestroyed()) return;
+  const url = normalizeUrl(String(value));
+  if (!url) { toast(t('invalidUrl'), 'warn'); return; }
+  try { tempOrigins.add(new URL(url).origin); } catch {}
+  wc.loadURL(url);
 }
 
 /** Drucken mit dem Druckdialog des Systems. Bei PDFs druckt der eingebaute Viewer das ganze Dokument. */
@@ -516,6 +716,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:launch', (_event, id) => launch(String(id)));
+  ipcMain.handle('library:icon', (_event, id, mode) => changeIcon(String(id), String(mode ?? 'pick')));
 
   // Text-Betrachter fragt nach dem Inhalt "seiner" Datei (welche, steht am Fenster - nicht in der Anfrage)
   ipcMain.handle('viewer:text', async (event) => {

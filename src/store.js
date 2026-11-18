@@ -216,6 +216,14 @@ class Library {
     this._save();
   }
 
+  /** Eigenes Symbol (Dateipfad eines PNG im Benutzerordner) setzen oder entfernen */
+  setIcon(id, file) {
+    const item = this.find(id);
+    if (!item) return;
+    if (file) item.icon = file; else delete item.icon;
+    this._save();
+  }
+
   touch(id) {
     const item = this.find(id);
     if (!item) return;

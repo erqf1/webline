@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('launcher', {
   remove: (id) => ipcRenderer.invoke('library:remove', id),
   rename: (id, name) => ipcRenderer.invoke('library:rename', id, name),
   launch: (id) => ipcRenderer.invoke('app:launch', id),
+  icon: (id, mode) => ipcRenderer.invoke('library:icon', id, mode),
   reveal: (id) => ipcRenderer.invoke('app:reveal', id),
   onState: (callback) => ipcRenderer.on('state:changed', (_event, state) => callback(state)),
   onToast: (callback) => ipcRenderer.on('toast', (_event, toast) => callback(toast)),

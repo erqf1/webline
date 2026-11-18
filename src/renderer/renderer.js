@@ -13,6 +13,7 @@ const keyLabel = (id) => I18N.label(settings.shortcuts[id] || '', settings.langu
 
 const ICONS = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13L19 12z"/></svg>',
+  image: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-5 4 4 2.5-2.5L20 17"/></svg>',
   edit: '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>',
   folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
@@ -155,6 +156,42 @@ async function rename(item) {
   if (name) await api.rename(item.id, name);
 }
 
+async function changeIcon(item) {
+  // Wahl: eigenes Bild, Symbol der Webseite, oder (falls gesetzt) zurück zum Standard
+  const choice = await pick({
+    title: t('changeIcon'),
+    text: item.name,
+    options: [
+      { id: 'pick', label: t('iconPick') },
+      ...(item.url ? [{ id: 'site', label: t('iconSite') }] : []),
+      ...(item.iconData ? [{ id: 'reset', label: t('iconReset') }] : []),
+    ],
+  });
+  if (choice) await api.icon(item.id, choice);
+}
+
+/** kleiner Auswahl-Dialog mit mehreren Knöpfen (nutzt das vorhandene Modal) */
+function pick({ title, text, options }) {
+  return new Promise((resolve) => {
+    $('#modal-title').textContent = title;
+    $('#modal-text').textContent = text;
+    $('#modal-input').hidden = true;
+    const ok = $('#modal-ok');
+    ok.hidden = true;
+    const box = el('div', { className: 'pick-row' });
+    for (const o of options) {
+      const b = el('button', { className: 'btn', text: o.label, attrs: { type: 'button' } });
+      b.addEventListener('click', () => { result = o.id; modal.close('pick'); });
+      box.append(b);
+    }
+    ok.parentElement.before(box);
+    let result = null;
+    modal.addEventListener('close', () => { box.remove(); ok.hidden = false; resolve(result); }, { once: true });
+    modal.returnValue = 'cancel';
+    modal.showModal();
+  });
+}
+
 async function remove(item) {
   const confirmed = await ask({
     title: t('removeQuestion'),
@@ -176,6 +213,11 @@ function card(item) {
   const tile = el('div', { className: `tile${kind ? ` kind-${kind}` : ''}`, text: kind ? label : [...item.name][0] ?? '?' });
   if (kind && !label) tile.innerHTML = KIND_ICONS[kind]; // statische Konstante
   if (!kind) tile.style.setProperty('--h', hueFor(item.id));
+  if (item.iconData) {
+    // eigenes Symbol: Bild statt Buchstabe/Art-Symbol
+    tile.replaceChildren(el('img', { className: 'tile-img', attrs: { src: item.iconData, alt: '' } }));
+    tile.classList.add('has-img');
+  }
   const play = el('span', { className: 'play' });
   play.innerHTML = ICONS.play;
   tile.append(play);
@@ -195,7 +237,7 @@ function card(item) {
     { className: 'actions' },
     iconButton('edit', t('rename'), () => rename(item)),
     ...(item.url
-      ? [iconButton('link', t('desktopShortcut'), () => api.shortcut(item.id)), iconButton('globe', t('openInBrowser'), () => api.reveal(item.id))]
+      ? [iconButton('image', t('changeIcon'), () => changeIcon(item)), iconButton('link', t('desktopShortcut'), () => api.shortcut(item.id)), iconButton('globe', t('openInBrowser'), () => api.reveal(item.id))]
       : [iconButton('folder', t('showInFolder'), () => api.reveal(item.id))]),
     iconButton('trash', t('removeFromList'), () => remove(item), 'danger')
   );
