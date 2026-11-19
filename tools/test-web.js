@@ -309,7 +309,8 @@ async function run(server, icons) {
     check('Programmfenster öffnet die Seite', !!prog, prog && prog.webContents.getURL());
     await waitFor(async () => prog && !prog.webContents.isLoading());
     await shot(prog, 'programm.png');
-    check('Kein Adressleisten-Menü', prog && !prog.isMenuBarVisible());
+    // macOS hat die globale Menüleiste (isMenuBarVisible ist dort immer true)
+    if (process.platform !== 'darwin') check('Kein Adressleisten-Menü', prog && !prog.isMenuBarVisible());
 
     // Link auf derselben Seite bleibt im Fenster
     await prog.webContents.executeJavaScript("document.getElementById('l').click()", true);
