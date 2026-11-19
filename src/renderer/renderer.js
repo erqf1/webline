@@ -472,7 +472,7 @@ function applyTexts() {
   // Fußzeile: die wichtigsten Tasten im Programm, mit den aktuellen Belegungen
   const hint = $('#footer-hint');
   hint.replaceChildren(t('inProgram'));
-  for (const [id, text] of [['fullscreen', 'hintFullscreen'], ['close', 'hintClose'], ['print', 'hintPrint'], ['reload', 'hintReload'], ['devtools', 'hintDevtools']]) {
+  for (const [id, text] of [['fullscreen', 'hintFullscreen'], ['close', 'hintClose'], ['print', 'hintPrint'], ['reload', 'hintReload'], ['editUrl', 'hintEditUrl'], ['devtools', 'hintDevtools']]) {
     const key = keyLabel(id);
     if (!key) continue;
     hint.append(el('span', {}, el('kbd', { text: key }), ` ${t(text)}`));

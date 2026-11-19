@@ -14,7 +14,7 @@ Außer HTML öffnet Webline auch **PDFs** (Blättern, Zoom, Suchen, **Drucken**)
 | Linux | `.deb` (Debian/Ubuntu), `.pacman` (Arch) oder `.tar.gz` (portabel, jede Distribution) |
 | macOS | `.zip` für Apple Silicon oder Intel (App-Bundle, immer portabel) |
 
-Bei der Windows-Installation lässt sich der Zielordner frei wählen (Assistent, kein „One-Click“-Installer). Alle Downloads: [Releases-Seite](https://github.com/erqf1/webline/releases).
+Bei der Windows-Installation lässt sich der Zielordner frei wählen (Assistent, kein „One-Click“-Installer). Das Desktop-Symbol legt nur die Erst-Installation an – Updates lassen es, wo es ist (und bringen ein gelöschtes nicht zurück), Deinstallieren entfernt es. Alle Downloads: [Releases-Seite](https://github.com/erqf1/webline/releases).
 
 ### Linux
 
@@ -44,6 +44,7 @@ Beim ersten Start ggf. Rechtsklick → „Öffnen“.
 | Programm zur Liste hinzufügen | **HTML hinzufügen** (Strg+O, auf dem Mac ⌘O) oder Datei ins Fenster ziehen |
 | Webseite als Programm | **Webseite hinzufügen** und Adresse eintippen, z. B. `mert.win/help` (ohne `https://` geht auch) |
 | Webseite vom Desktop starten | an der Karte **Verknüpfung auf dem Desktop** – startet die Seite per Doppelklick direkt in ihrem Fenster |
+| Eigenes Symbol | an der Karte **Symbol ändern**: Bild auswählen, Symbol der Webseite nehmen oder zurück zum Standard |
 | Aus der Liste starten | Karte anklicken (oder Enter) |
 | Umbenennen / Entfernen | Symbole oben rechts an der Karte (oder F2 / Entf) |
 | Suchen | Strg+F (⌘F) |
@@ -53,6 +54,12 @@ Der Name eines Programms ist der `<title>` der HTML-Datei (sonst der Dateiname) 
 ### Webseiten als Programm
 
 Jede Webseite kann wie eine HTML-Datei laufen: **Webseite hinzufügen** → Adresse eintippen, z. B. `mert.win/help`. Der Name kommt aus dem `<title>` der Seite und lässt sich ändern. Sie startet in ihrem eigenen Fenster ohne Adressleiste, mit eigenem dauerhaftem Speicher (Anmeldungen bleiben erhalten), Downloads und Tastenkürzel wie bei HTML-Programmen. Links innerhalb derselben Seite bleiben im Fenster, fremde Seiten öffnen im Browser. Über die Karte gibt es eine **Desktop-Verknüpfung** (Windows, Linux) – Webline lässt sich auch direkt mit einer Adresse starten: `Webline https://mert.win/help`.
+
+**Symbol ändern** (an der Karte): ein eigenes Bild (PNG, JPG, WebP, GIF, SVG, ICO …) oder das Symbol der Webseite (größtes aus `<link rel=icon>`, Apple-Touch-Icon, Web-App-Manifest oder `/favicon.ico`). Es wird als PNG und ICO in `userData/icons` gespeichert und erscheint auf der Kachel, als Fenster-Symbol und in der Desktop-Verknüpfung (eine vorhandene Verknüpfung wird mit aktualisiert).
+
+**`F6` – Adresse vorübergehend ändern:** öffnet über der Seite ein Eingabefeld mit der aktuellen Adresse. Die neue Adresse gilt nur in diesem Fenster; das Programm behält seine gespeicherte Adresse. Zurück (`Alt+←`, auf dem Mac `⌘[`, oder die Zurück-Taste der Maus) bzw. Schließen bringt dich wieder hin.
+
+Zur eigenen Seite zählen auch die Varianten mit und ohne `www` und Subdomains (z. B. `help.mert.win`). Ein Klick auf eine fremde Seite öffnet den Browser, das Fenster bleibt dort, wo man war – samt Scroll-Position.
 
 ### Zwei Wege, die App zu starten
 
@@ -72,6 +79,8 @@ Jede Webseite kann wie eine HTML-Datei laufen: **Webseite hinzufügen** → Adre
 | `F5` / `Strg+Shift+R` | Neu laden / Cache umgehen |
 | `Strg+J` / `⌘J` | Download-Liste ein/aus |
 | `Strg+P` / `⌘P` | Drucken (bei PDFs das ganze Dokument) |
+| `F6` | Adresse vorübergehend ändern (nur Web-Programme) |
+| `Alt+←` / `⌘[` | Zurück (auch die Zurück-Taste der Maus) |
 | `F12` | Entwicklertools |
 
 `Esc` bleibt bewusst dem Programm überlassen (z. B. für Pausemenüs).

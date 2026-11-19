@@ -18,13 +18,19 @@ jobs:
   draft-release:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      # Release-Notizen aus release-notes/<tag>.md (falls vorhanden)
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          notes="release-notes/${{ github.ref_name }}.md"
+          if [ ! -f "$notes" ]; then
+            notes="$RUNNER_TEMP/notes.md"
+            echo "Automatisch gebaut. Änderungen: https://mert.win/html/changelog.html" > "$notes"
+          fi
           gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" \
-            --draft --title "Webline ${{ github.ref_name }}" \
-            --notes "Automatisch gebaut. Details siehe README." \
-            || echo "Release existiert schon, weiter."
+            --draft --title "Webline ${{ github.ref_name }}" --notes-file "$notes" \
+            || gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --notes-file "$notes"
 
   build:
     needs: draft-release

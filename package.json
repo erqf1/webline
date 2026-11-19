@@ -1,7 +1,7 @@
 {
   "name": "webcase",
   "productName": "Webline",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "Startet HTML-Dateien, PDFs und mehr wie eigenständige Programme.",
   "main": "src/main.js",
   "private": true,
@@ -137,7 +137,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": false,
       "createStartMenuShortcut": true,
       "include": "build/installer.nsh"
     },

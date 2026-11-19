@@ -148,7 +148,9 @@
       iconUnreadable: 'This image could not be read',
       iconSiteMissing: 'The website has no usable icon',
       editUrlTitle: 'Change address temporarily',
-      editUrlHint: 'Only for this window - the app keeps its saved address. Back (Alt+←) or closing returns to it.',
+      editUrlHint: 'Only for this window - the program keeps its saved address. Going back ({key}) or closing the window returns to it.',
+      hintEditUrl: 'change address',
+      editUrlEsc: 'Esc closes',
       editUrlGo: 'Open',
       scEditUrl: 'Change address temporarily',
       scBack: 'Back',
@@ -290,7 +292,9 @@
       iconUnreadable: 'Das Bild konnte nicht gelesen werden',
       iconSiteMissing: 'Die Webseite hat kein brauchbares Symbol',
       editUrlTitle: 'Adresse vorübergehend ändern',
-      editUrlHint: 'Nur in diesem Fenster - das Programm behält seine gespeicherte Adresse. Zurück (Alt+←) oder Schließen bringt dich wieder hin.',
+      editUrlHint: 'Nur in diesem Fenster - das Programm behält seine gespeicherte Adresse. Zurück ({key}) oder Schließen des Fensters bringt dich wieder hin.',
+      hintEditUrl: 'Adresse ändern',
+      editUrlEsc: 'Esc schließt',
       editUrlGo: 'Öffnen',
       scEditUrl: 'Adresse vorübergehend ändern',
       scBack: 'Zurück',
@@ -300,7 +304,7 @@
     },
   };
 
-  // Tastenkürzel: "Mod" = Strg (Windows/Linux) bzw. ⌘ (macOS)
+  // Tastenkürzel: "Mod" = Strg (Windows/Linux) bzw. ⌘ (macOS); "mac" = eigene Vorgabe unter macOS
   const SHORTCUTS = [
     { id: 'fullscreen', label: 'scFullscreen', def: 'F11' },
     { id: 'close', label: 'scClose', def: 'Mod+W' },
@@ -310,7 +314,7 @@
     { id: 'downloads', label: 'scDownloads', def: 'Mod+J' },
     { id: 'print', label: 'scPrint', def: 'Mod+P' },
     { id: 'editUrl', label: 'scEditUrl', def: 'F6' },
-    { id: 'back', label: 'scBack', def: 'Alt+ArrowLeft' },
+    { id: 'back', label: 'scBack', def: 'Alt+ArrowLeft', mac: 'Mod+[' },  // macOS: ⌥← springt in Textfeldern wortweise
     { id: 'add', label: 'scAdd', def: 'Mod+O' },
     { id: 'search', label: 'scSearch', def: 'Mod+F' },
   ];
@@ -341,14 +345,19 @@
     return parts.join('+');
   }
 
-  /** Zum Anzeigen: "Mod" -> "Strg"/"Ctrl" bzw. "⌘" */
+  const KEY_NAMES = { Escape: 'Esc', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
+
+  /** Zum Anzeigen: "Mod" -> "Strg"/"Ctrl" bzw. "⌘", Pfeiltasten als Pfeil */
   function label(c, lang, isMac) {
     if (!c) return '';
     return c
       .split('+')
-      .map((p) => (p === 'Mod' ? (isMac ? '⌘' : lang === 'de' ? 'Strg' : 'Ctrl') : p === 'Escape' ? 'Esc' : p))
+      .map((p) => (p === 'Mod' ? (isMac ? '⌘' : lang === 'de' ? 'Strg' : 'Ctrl') : KEY_NAMES[p] ?? p))
       .join('+');
   }
 
-  return { LANGUAGES, SHORTCUTS, make, combo, label };
+  /** Standardbelegung eines Kürzels auf diesem System */
+  const defaultKey = (s, isMac) => (isMac && s.mac) || s.def;
+
+  return { LANGUAGES, SHORTCUTS, make, combo, label, defaultKey };
 });

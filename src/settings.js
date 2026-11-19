@@ -2,7 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { SHORTCUTS, LANGUAGES } = require('./i18n');
+const { SHORTCUTS, LANGUAGES, defaultKey } = require('./i18n');
+const isMac = process.platform === 'darwin';
 
 // Sprache, Stil und eigene Tastenkürzel (userData/settings.json). Englisch und Standard-Stil sind die Vorgabe.
 const STYLES = ['standard', 'minimal', 'acryl'];
@@ -42,7 +43,7 @@ class Settings {
   /** Wirksame Kürzel: eigene Belegung (auch leer = keine Taste) oder Standard */
   shortcuts() {
     const out = {};
-    for (const s of SHORTCUTS) out[s.id] = s.id in this.data.shortcuts ? String(this.data.shortcuts[s.id]) : s.def;
+    for (const s of SHORTCUTS) out[s.id] = s.id in this.data.shortcuts ? String(this.data.shortcuts[s.id]) : defaultKey(s, isMac);
     return out;
   }
 
@@ -55,7 +56,7 @@ class Settings {
       for (const s of SHORTCUTS) {
         if (!(s.id in patch.shortcuts)) continue;
         const v = String(patch.shortcuts[s.id] ?? '');
-        if (v === s.def) delete this.data.shortcuts[s.id];
+        if (v === defaultKey(s, isMac)) delete this.data.shortcuts[s.id];
         else this.data.shortcuts[s.id] = v;
       }
     }

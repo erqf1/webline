@@ -1,0 +1,118 @@
+name: Test
+
+# Unsichtbarer Test (tools/test-web.js) auf allen drei Systemen und unter Windows ein echter Installer-Durchlauf:
+# Desktop-Symbol nur bei der Erst-Installation, bei Updates nicht anfassen, beim Deinstallieren weg.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - if: runner.os == 'Linux'
+        # Ubuntu 24.04 erlaubt Chromiums Sandbox ohne SUID-Helfer nicht; Fenster laufen in einem virtuellen Bildschirm
+        run: xvfb-run -a -s "-screen 0 1600x1000x24" npx electron --no-sandbox tools/test-web.js
+      - if: runner.os != 'Linux'
+        run: npx electron tools/test-web.js
+
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx electron-builder -w nsis --publish never
+      - name: Desktop-Symbol bei Installation, Update und Deinstallation
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Get-ChildItem dist\Webline-Setup-*.exe | Select-Object -First 1).FullName
+          $desktop = [Environment]::GetFolderPath('Desktop')
+          $link = Join-Path $desktop 'Webline.lnk'
+          function Entry() {
+            Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+              Where-Object { $_.DisplayName -like 'Webline*' } | Select-Object -First 1
+          }
+          function Install($exe, $arguments) {
+            Start-Process -FilePath $exe -ArgumentList $arguments -Wait
+            for ($i = 0; $i -lt 30 -and -not (Entry); $i++) { Start-Sleep -Seconds 1 }
+            Start-Sleep -Seconds 2
+          }
+          function Uninstall() {
+            $e = Entry
+            $exe = ($e.UninstallString -replace '^"([^"]+)".*$', '$1')
+            Start-Process -FilePath $exe -ArgumentList '/S' -Wait
+            # das Deinstallationsprogramm startet sich aus dem Temp-Ordner neu - warten, bis es fertig ist
+            for ($i = 0; $i -lt 60 -and (Entry); $i++) { Start-Sleep -Seconds 1 }
+            Start-Sleep -Seconds 2
+          }
+          function Expect($name, $ok) { if ($ok) { "OK   $name" } else { "FEHL $name"; $script:failed = $true } }
+          $failed = $false
+          "Desktop: $desktop"
+
+          # 1. Erst-Installation legt das Symbol an
+          Install $setup '/S'
+          Expect 'Erst-Installation legt das Desktop-Symbol an' (Test-Path $link)
+          $t0 = (Get-Item $link).CreationTimeUtc
+          Start-Sleep -Seconds 2
+
+          # 2. Update (wie der Auto-Updater) lässt es in Ruhe
+          Install $setup '--updated /S'
+          Expect 'Update lässt das Symbol stehen (nicht neu angelegt)' ((Test-Path $link) -and ((Get-Item $link).CreationTimeUtc -eq $t0))
+
+          # 3. Setup von Hand über die vorhandene Installation: ebenfalls nicht neu anlegen
+          Install $setup '/S'
+          Expect 'Setup von Hand über vorhandene Installation: Symbol unverändert' ((Test-Path $link) -and ((Get-Item $link).CreationTimeUtc -eq $t0))
+
+          # 4. Gelöschtes Symbol kommt bei Updates nicht zurück
+          Remove-Item $link
+          Install $setup '--updated /S'
+          Expect 'Gelöschtes Symbol kommt beim Update nicht zurück' (-not (Test-Path $link))
+          Install $setup '/S'
+          Expect 'und auch nicht beim Setup von Hand' (-not (Test-Path $link))
+
+          # 5. Deinstallieren entfernt das Symbol (für den Test von Hand wieder angelegt)
+          Copy-Item (Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Filter 'Webline.lnk' -Recurse | Select-Object -First 1).FullName $link
+          Uninstall
+          Expect 'Deinstalliert' (-not (Entry))
+          Expect 'Deinstallieren entfernt das Symbol' (-not (Test-Path $link))
+
+          # 5b. Danach wieder installieren = Erst-Installation: Symbol kommt
+          Install $setup '/S'
+          Expect 'Neu-Installation nach Deinstallation legt das Symbol an' (Test-Path $link)
+          Uninstall
+
+          # 6. Umstieg von 1.12 (dessen Deinstallationsprogramm löscht das Symbol beim Setup von Hand): wiederhergestellt
+          gh release download v1.12.0 --repo $env:GITHUB_REPOSITORY --pattern 'Webline-Setup-1.12.0.exe' --dir old
+          Install (Resolve-Path old\Webline-Setup-1.12.0.exe).Path '/S'
+          Expect '1.12 installiert, Symbol da' (Test-Path $link)
+          Install $setup '/S'
+          Expect 'Setup 1.13 von Hand über 1.12: Symbol bleibt erhalten' (Test-Path $link)
+          Uninstall
+          Install (Resolve-Path old\Webline-Setup-1.12.0.exe).Path '/S'
+          Install $setup '--updated /S'
+          Expect 'Auto-Update 1.12 -> 1.13: Symbol bleibt erhalten' (Test-Path $link)
+          Uninstall
+
+          if ($failed) { exit 1 }
