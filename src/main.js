@@ -10,6 +10,7 @@ const { Library, isSupportedFile, fileKind, idFor, EXTENSIONS, normalizeUrl, nam
 const { Downloads } = require('./downloads');
 const { DownloadManager } = require('./download-manager');
 const { Settings } = require('./settings');
+const { Passwords } = require('./passwords');
 const i18n = require('./i18n');
 
 const ICON = path.join(__dirname, '..', 'assets', 'icon.png');
@@ -19,12 +20,14 @@ const VIEWER_PAGE = path.join(__dirname, 'viewer', 'viewer.html');
 const VIEWER_PRELOAD = path.join(__dirname, 'viewer', 'viewer-preload.js');
 const URLBAR_PAGE = path.join(__dirname, 'urlbar', 'urlbar.html');
 const URLBAR_PRELOAD = path.join(__dirname, 'urlbar', 'preload.js');
+const AUTOFILL_PRELOAD = path.join(__dirname, 'autofill', 'preload.js');
 const TEXT_LIMIT = 25 * 1024 * 1024; // größere Textdateien werden gekürzt angezeigt
 
 let library;
 let downloads;
 let downloadManager;
 let settings;
+let passwords;
 let t = i18n.make('en');  // Übersetzer für die gewählte Sprache
 
 // Webline hieß bis Version 1.8 "Webcase": Einstellungen, Bibliothek und Downloads aus dem alten Ordner übernehmen
@@ -399,7 +402,8 @@ async function launch(id) {
         sandbox: true,
         spellcheck: false,
         plugins: kind === 'pdf' || web,
-        preload: kind === 'text' ? VIEWER_PRELOAD : undefined,
+        // Web-Programme: Passwort-Autofill (läuft isoliert von der Seite, siehe autofill/preload.js)
+        preload: kind === 'text' ? VIEWER_PRELOAD : web ? AUTOFILL_PRELOAD : undefined,
       },
     });
     win.removeMenu();
@@ -633,6 +637,63 @@ function editUrlTemporarily(win, originalUrl, onUrl) {
   wc.loadFile(URLBAR_PAGE);
 }
 
+// ---------------------------------------------------------------- Passwort-Autofill
+
+/** Von welchem Web-Programm und welcher Seite kommt die Anfrage? Bestimmt der Hauptprozess selbst - nur der
+ *  Hauptframe eines offenen Web-Programmfensters zählt, die Origin kommt von Chromium, nicht von der Seite. */
+function autofillSource(event) {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const item = win && library.find(win.weblineItem);
+  if (!item || !isWebItem(item) || programWins.get(item.id) !== win) return null;
+  const frame = event.senderFrame;
+  if (!frame || frame !== event.sender.mainFrame) return null;
+  const origin = String(frame.origin ?? '');
+  const site = /^https?:\/\//i.test(origin) ? siteOf(origin) : '';
+  return site ? { win, item, origin, site } : null;
+}
+
+const siteLabel = (origin) => origin.replace(/^https?:\/\//i, '');
+
+async function onCredentialsCaptured(event, data) {
+  const src = autofillSource(event);
+  if (!src || !settings.autofill || !passwords.available()) return;
+  const username = typeof data?.username === 'string' ? data.username.slice(0, 500) : '';
+  const password = typeof data?.password === 'string' ? data.password.slice(0, 1000) : '';
+  if (!password || passwords.isNever(src.item.id, src.site)) return;
+  const state = passwords.check(src.item.id, src.site, username, password);
+  if (state === 'same' || src.win.weblineAsking) return;
+  src.win.weblineAsking = true;
+  try {
+    const { response } = await dialog.showMessageBox(src.win, {
+      type: 'question',
+      title: 'Webline',
+      message: t(state === 'update' ? 'pwUpdateQuestion' : 'pwSaveQuestion', { site: siteLabel(src.origin) }),
+      detail: `${username ? t('pwUser', { user: username }) : t('noUsername')}\n${t('pwWhere')}`,
+      buttons: [t(state === 'update' ? 'pwUpdate' : 'pwSave'), t('pwNotNow'), t('pwNever')],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (response === 0) passwords.save(src.item.id, src.site, src.origin, username, password);
+    else if (response === 2) passwords.setNever(src.item.id, src.site, true);
+    if (response !== 1) send('passwords:changed');
+  } catch {
+    // Fenster inzwischen zu
+  } finally {
+    if (!src.win.isDestroyed()) src.win.weblineAsking = false;
+  }
+}
+
+function passwordsState() {
+  const { entries, never } = passwords.list();
+  const name = (id) => library.find(id)?.name ?? '';
+  return {
+    available: passwords.available(),
+    entries: entries.map((e) => ({ ...e, program: name(e.programId), site: siteLabel(e.origin) })).sort((a, b) => a.site.localeCompare(b.site) || a.username.localeCompare(b.username)),
+    never: never.map((n) => ({ ...n, program: name(n.programId) })),
+  };
+}
+
 /** Drucken mit dem Druckdialog des Systems. Bei PDFs druckt der eingebaute Viewer das ganze Dokument. */
 function printProgram(win) {
   if (win.isDestroyed()) return;
@@ -661,6 +722,7 @@ function settingsState() {
   return {
     language: settings.language, style: settings.style, shortcuts: settings.shortcuts(), platform: process.platform,
     fileIcons: settings.fileIcons, fileIconsAvailable: fileIcons.available(),
+    autofill: settings.autofill, passwordsAvailable: passwords ? passwords.available() : false,
   };
 }
 
@@ -757,6 +819,28 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:launch', (_event, id) => launch(String(id)));
+  ipcMain.handle('autofill:list', (event) => {
+    const src = autofillSource(event);
+    if (!src) return [];
+    return passwords.find(src.item.id, src.site).map(({ id, username }) => ({ id, username, noUser: t('noUsername') }));
+  });
+  ipcMain.handle('autofill:fill', (event, id) => {
+    const src = autofillSource(event);
+    const entry = src && passwords.get(String(id));
+    if (!entry || entry.programId !== src.item.id || entry.site !== src.site) return null;
+    passwords.used(entry.id);
+    return { username: entry.username, password: entry.password };
+  });
+  ipcMain.on('autofill:captured', onCredentialsCaptured);
+  ipcMain.handle('passwords:get', () => passwordsState());
+  ipcMain.handle('passwords:remove', (_event, id) => {
+    passwords.remove(String(id));
+    return passwordsState();
+  });
+  ipcMain.handle('passwords:allow', (_event, programId, site) => {
+    passwords.setNever(String(programId), String(site), false);
+    return passwordsState();
+  });
   ipcMain.on('urlbar:done', (event, value) => urlbars.get(event.sender.id)?.(typeof value === 'string' ? value : null));
   ipcMain.handle('library:icon', (_event, id, mode) => {
     const m = String(mode ?? 'pick');
@@ -988,6 +1072,7 @@ if (!app.requestSingleInstanceLock()) {
     t = i18n.make(settings.language);
     setTimeout(() => syncFileIcons(false), 4000);
     library = new Library(path.join(app.getPath('userData'), 'library.json'));
+    passwords = new Passwords(path.join(app.getPath('userData'), 'passwords.json'));
     downloads = new Downloads(path.join(app.getPath('userData'), 'downloads.json'));
     downloadManager = new DownloadManager({
       downloads,

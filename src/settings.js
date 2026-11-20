@@ -11,13 +11,14 @@ const FILE_ICONS = ['auto', 'light', 'dark'];  // Dateisymbole im Explorer (Wind
 class Settings {
   constructor(file) {
     this.file = file;
-    this.data = { language: 'en', style: 'standard', fileIcons: 'auto', fileIconsApplied: 'light', shortcuts: {} };
+    this.data = { language: 'en', style: 'standard', fileIcons: 'auto', fileIconsApplied: 'light', autofill: true, shortcuts: {} };
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (LANGUAGES[raw.language]) this.data.language = raw.language;
       if (STYLES.includes(raw.style)) this.data.style = raw.style;
       if (FILE_ICONS.includes(raw.fileIcons)) this.data.fileIcons = raw.fileIcons;
       if (raw.fileIconsApplied === 'dark') this.data.fileIconsApplied = 'dark';
+      if (raw.autofill === false) this.data.autofill = false;
       if (raw.shortcuts && typeof raw.shortcuts === 'object') this.data.shortcuts = raw.shortcuts;
     } catch {
       // keine Datei / kaputt -> Standard
@@ -34,6 +35,11 @@ class Settings {
 
   get fileIcons() {
     return this.data.fileIcons;
+  }
+
+  /** Speichern von Passwörtern anbieten (Ausfüllen gespeicherter geht immer) */
+  get autofill() {
+    return this.data.autofill;
   }
 
   get fileIconsApplied() {
@@ -60,6 +66,7 @@ class Settings {
         else this.data.shortcuts[s.id] = v;
       }
     }
+    if (typeof patch.autofill === 'boolean') this.data.autofill = patch.autofill;
     if (patch.resetShortcuts) this.data.shortcuts = {};
     this._save();
   }

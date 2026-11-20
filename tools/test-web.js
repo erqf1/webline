@@ -92,6 +92,20 @@ const SNAP_PAGE = `<!doctype html><title>Snap-Test</title>
 <section id="b"><h1>Abschnitt 2</h1><a id="fremd" href="/fremd-link">fremde Seite</a></section>
 <section id="c"><h1>Abschnitt 3</h1></section>`;
 
+const LOGIN_PAGE = `<!doctype html><title>Anmelden</title>
+<style>input:focus{outline:2px solid #6366f1;outline-offset:1px}</style>
+<body style="font:16px system-ui;margin:60px auto;max-width:360px;background:#f6f7fb">
+<h2>Anmelden</h2>
+<form id="f" method="post" action="/eingeloggt" style="display:grid;gap:10px">
+  <input id="user" name="user" autocomplete="username" placeholder="Benutzer" style="padding:10px;font:inherit">
+  <input id="pw" name="pw" type="password" autocomplete="current-password" placeholder="Passwort" style="padding:10px;font:inherit">
+  <button id="go" style="padding:10px;font:inherit">Anmelden</button>
+</form>
+<script>
+  // Was die Seite selbst von Webline sieht (darf nichts sein)
+  window.__leak = typeof require + '/' + typeof window.launcher + '/' + typeof window.ipcRenderer;
+</script>`;
+
 function startServer(icons) {
   const server = http.createServer((req, res) => {
     const host = String(req.headers.host || '').split(':')[0];
@@ -117,6 +131,8 @@ function startServer(icons) {
     }
     if (url === '/snap') return send('text/html', SNAP_PAGE);
     if (url === '/schleife') return send('text/html', `<!doctype html><title>Schleife</title><script>setTimeout(() => location.href = 'http://ziel.test:${port}/irgendwo', 50)</script>`);
+    if (url === '/login' || url.startsWith('/login?')) return send('text/html', LOGIN_PAGE);
+    if (url === '/eingeloggt') return send('text/html', '<!doctype html><title>Drin</title><h1 id="drin">Angemeldet</h1>');
     if (url === '/plain') return send('text/html', '<!doctype html><title>Ohne Symbol-Link</title><h1>plain</h1>');
     send('text/html', '<!doctype html><title>Hilfe-Test</title><link rel="icon" sizes="192x192" href="/icon-192.png"><link rel="mask-icon" href="/mask.svg"><body style="font:20px system-ui;background:#eef"><h1>Hilfe</h1><a id="l" href="/seite2">weiter</a></body>');
   });
@@ -203,10 +219,163 @@ async function websiteShots(launcher, run, port, sw) {
   await waitFor(() => !urlbarContents(), 4000);
 }
 
+let loginWin = null;
+
+async function passwordTests(launcher, run, port) {
+  const asked = [];
+  let answer = 0; // 0 Speichern/Aktualisieren, 1 Nicht jetzt, 2 Nie
+  const realBox = dialog.showMessageBox;
+  dialog.showMessageBox = async (_win, options) => {
+    asked.push(options);
+    return { response: answer, checkboxChecked: false };
+  };
+  const konto = await run(`window.launcher.addUrl('http://konto.test:${port}/login')`);
+  await run(`window.launcher.launch('${konto.id}')`);
+  const w = await waitFor(() => programWindows(launcher).find((x) => /konto\.test/.test(x.webContents.getURL())));
+  loginWin = w;
+  const wc = w.webContents;
+  // wie ein Mensch: echter Mausklick auf ein Feld
+  const clickOn = async (c, sel) => {
+    c.focus();
+    const p = await c.executeJavaScript(`(() => { const b = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: Math.round(b.left + 20), y: Math.round(b.top + b.height / 2) }; })()`);
+    c.sendInputEvent({ type: 'mouseDown', x: p.x, y: p.y, button: 'left', clickCount: 1 });
+    c.sendInputEvent({ type: 'mouseUp', x: p.x, y: p.y, button: 'left', clickCount: 1 });
+  };
+  const loaded = (re) => waitFor(async () => re.test(wc.getURL()) && !wc.isLoading(), 6000);
+  await loaded(/\/login$/);
+  check('Seite sieht nichts von Webline (kein require/launcher/ipc)', (await wc.executeJavaScript('window.__leak')) === 'undefined/undefined/undefined', await wc.executeJavaScript('window.__leak'));
+
+  const login = async (user, pass) => {
+    await wc.executeJavaScript(`document.getElementById('user').value = ${JSON.stringify(user)}; document.getElementById('pw').value = ${JSON.stringify(pass)}; document.getElementById('go').click()`, true);
+    await loaded(/\/eingeloggt$/);
+    await sleep(400);
+  };
+  const back = async () => {
+    wc.loadURL(`http://konto.test:${port}/login`);
+    await loaded(/\/login$/);
+  };
+
+  await login('mert', 'geheim123');
+  check('Anmelden fragt "Passwort speichern?"', asked.length === 1 && /konto\.test/.test(asked[0].message) && /mert/.test(asked[0].detail), asked[0] && asked[0].message);
+  let st = await run('window.launcher.passwords.get()');
+  check('Passwort gespeichert (ohne Passwort in der Übersicht)', st.available && st.entries.length === 1 && st.entries[0].username === 'mert' && !('password' in st.entries[0]), JSON.stringify(st.entries));
+  const file = path.join(tmp, 'passwords.json');
+  check('Datei verschlüsselt (kein Klartext)', fs.existsSync(file) && !fs.readFileSync(file, 'utf8').includes('geheim123') && !fs.readFileSync(file, 'utf8').includes('mert'));
+
+  // Ausfüllen per Tastatur: Feld anklicken, Auswahl erscheint, ↓ + Enter
+  await back();
+  check('Felder sind nicht ungefragt ausgefüllt', (await wc.executeJavaScript("document.getElementById('pw').value")) === '');
+  await clickOn(wc, '#user');
+  const popup = await waitFor(() => wc.executeJavaScript("!!document.querySelector('webline-autofill')"), 4000);
+  check('Klick ins Benutzerfeld zeigt die Auswahl', !!popup);
+  if (shotDir) await shot(w, 'website-autofill.png');
+  key(wc, 'Down');
+  key(wc, 'Return');
+  const filled = await waitFor(async () => {
+    const v = await wc.executeJavaScript("[document.getElementById('user').value, document.getElementById('pw').value]");
+    return v[1] ? v : null;
+  }, 4000);
+  check('↓ + Enter füllt Benutzer und Passwort aus', filled && filled[0] === 'mert' && filled[1] === 'geheim123', JSON.stringify(filled));
+  check('Auswahl ist danach weg', !(await wc.executeJavaScript("!!document.querySelector('webline-autofill')")));
+
+  // Ausfüllen per Maus
+  await back();
+  await clickOn(wc, '#pw');
+  await waitFor(() => wc.executeJavaScript("!!document.querySelector('webline-autofill')"), 4000);
+  const r = await wc.executeJavaScript("(() => { const b = document.querySelector('webline-autofill').getBoundingClientRect(); return { x: b.left + 30, y: b.top + 18 }; })()");
+  wc.sendInputEvent({ type: 'mouseDown', x: Math.round(r.x), y: Math.round(r.y), button: 'left', clickCount: 1 });
+  wc.sendInputEvent({ type: 'mouseUp', x: Math.round(r.x), y: Math.round(r.y), button: 'left', clickCount: 1 });
+  const filled2 = await waitFor(async () => (await wc.executeJavaScript("document.getElementById('pw').value")) || null, 4000);
+  check('Klick auf das Konto füllt aus', filled2 === 'geheim123', String(filled2));
+
+  // Die Seite selbst kann das Ausfüllen nicht auslösen (künstliche Tastendrücke zählen nicht)
+  await back();
+  await clickOn(wc, '#user');
+  await waitFor(() => wc.executeJavaScript("!!document.querySelector('webline-autofill')"), 4000);
+  await wc.executeJavaScript(`for (const k of ['ArrowDown', 'Enter']) document.getElementById('user').dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))`);
+  await sleep(600);
+  check('Künstliche Tastendrücke der Seite füllen nichts aus', (await wc.executeJavaScript("document.getElementById('pw').value")) === '');
+  key(wc, 'Escape');
+  await back();
+  await clickOn(wc, '#pw');
+  await waitFor(() => wc.executeJavaScript("!!document.querySelector('webline-autofill')"), 4000);
+  key(wc, 'Down');
+  key(wc, 'Return');
+  await waitFor(async () => (await wc.executeJavaScript("document.getElementById('pw').value")) || null, 4000);
+
+  // Gleiche Anmeldung nochmal: keine Frage. Anderes Passwort: "aktualisieren?"
+  await wc.executeJavaScript("document.getElementById('go').click()", true);
+  await loaded(/\/eingeloggt$/);
+  await sleep(400);
+  check('Gleiche Anmeldung fragt nicht nochmal', asked.length === 1, `${asked.length} Fragen`);
+  await back();
+  await login('mert', 'neu456');
+  check('Neues Passwort: "aktualisieren?"', asked.length === 2 && /aktualisieren|Update/i.test(asked[1].message), asked[1] && asked[1].message);
+  st = await run('window.launcher.passwords.get()');
+  check('und ersetzt den Eintrag', st.entries.length === 1);
+
+  // Andere Seite (eigenes Programm): bekommt nichts angeboten
+  const andere = await run(`window.launcher.addUrl('http://andere.test:${port}/login')`);
+  await run(`window.launcher.launch('${andere.id}')`);
+  const w2 = await waitFor(() => programWindows(launcher).find((x) => /andere\.test/.test(x.webContents.getURL())));
+  await waitFor(async () => !w2.webContents.isLoading());
+  await clickOn(w2.webContents, '#user');
+  await sleep(800);
+  check('Andere Seite bekommt keine Konten angeboten', !(await w2.webContents.executeJavaScript("!!document.querySelector('webline-autofill')")));
+  // "Nie für diese Seite"
+  answer = 2;
+  await w2.webContents.executeJavaScript("document.getElementById('user').value = 'x'; document.getElementById('pw').value = 'y'; document.getElementById('go').click()", true);
+  await waitFor(async () => /eingeloggt/.test(w2.webContents.getURL()) && !w2.webContents.isLoading(), 6000);
+  await sleep(400);
+  const nAsked = asked.length;
+  w2.webContents.loadURL(`http://andere.test:${port}/login`);
+  await waitFor(async () => /login/.test(w2.webContents.getURL()) && !w2.webContents.isLoading(), 6000);
+  await w2.webContents.executeJavaScript("document.getElementById('user').value = 'x2'; document.getElementById('pw').value = 'y2'; document.getElementById('go').click()", true);
+  await waitFor(async () => /eingeloggt/.test(w2.webContents.getURL()) && !w2.webContents.isLoading(), 6000);
+  await sleep(400);
+  st = await run('window.launcher.passwords.get()');
+  check('"Nie für diese Seite" wird gemerkt', asked.length === nAsked && st.never.length === 1 && st.entries.length === 1, `${asked.length - nAsked} neue Fragen, ${st.never.length} nie`);
+  w2.close();
+
+  // Einstellungen: Liste und Schalter
+  await run(`document.getElementById('settings-btn').click()`);
+  const rows = await waitFor(() => run(`document.querySelectorAll('#password-list .pw-row').length`), 3000);
+  check('Einstellungen zeigen gespeicherte und "nie"-Seiten', rows === 2, `${rows} Zeilen`);
+  if (shotDir) {
+    await run(`window.launcher.setSettings({ language: 'de' })`);
+    await sleep(400);
+    await run(`document.querySelector('#settings-modal').scrollTop = 0; document.querySelector('#password-list').scrollIntoView({ block: 'center' })`);
+    await sleep(300);
+    await shot(launcher, 'website-passwoerter.png');
+    await run(`window.launcher.setSettings({ language: 'en' })`);
+  }
+  await run(`document.getElementById('settings-modal').close()`);
+  await run(`window.launcher.setSettings({ autofill: false })`);
+  await back();
+  await login('zweiter', 'abc');
+  check('Ausgeschaltet: keine Frage mehr', asked.length === nAsked, `${asked.length - nAsked}`);
+  await run(`window.launcher.setSettings({ autofill: true })`);
+  // Löschen
+  const id = (await run('window.launcher.passwords.get()')).entries[0].id;
+  st = await run(`window.launcher.passwords.remove('${id}')`);
+  check('Löschen in den Einstellungen', st.entries.length === 0);
+  await back();
+  await clickOn(wc, '#user');
+  await sleep(700);
+  check('Gelöscht: keine Auswahl mehr', !(await wc.executeJavaScript("!!document.querySelector('webline-autofill')")));
+  dialog.showMessageBox = realBox;
+  w.close();
+}
+
 async function run(server, icons) {
   const port = server.address().port;
   const appIcons = require('../src/appicons');
   icons.favicon = appIcons.toIco(solid(256, BLUE).resize({ width: 48, height: 48 }).resize({ width: 256, height: 256 }));
+  // Test-Verschlüsselung statt Schlüsselbund (Linux-CI hat keinen, macOS würde nachfragen)
+  const pw = require('../src/passwords');
+  console.log(`INFO echter Schlüsselspeicher verfügbar: ${(() => { try { return pw.systemCrypto.available(); } catch { return false; } })()}`);
+  const xor = (buf) => Buffer.from(buf).map((b, i) => b ^ (0x5a + i) & 0xff);
+  Object.assign(pw.systemCrypto, { available: () => true, encrypt: (text) => xor(Buffer.from(text, 'utf8')), decrypt: (buf) => xor(buf).toString('utf8') });
   require('../src/main.js');
   // main.js hängt sich an app.whenReady() - das ist schon durch, läuft also gleich los
   try {
@@ -385,6 +554,9 @@ async function run(server, icons) {
     backKey(sw.webContents);
     const home = await waitFor(async () => /\/snap$/.test(sw.webContents.getURL()) && !sw.webContents.isLoading(), 5000);
     check('Zurück führt zur Programm-Adresse', !!home, sw.webContents.getURL());
+
+    // ------------------------------------------------------------ Passwort-Autofill
+    await passwordTests(launcher, run, port);
 
     // ------------------------------------------------------------ Schleifenschutz
     const loop = await run(`window.launcher.addUrl('http://loop.test:${port}/schleife')`);

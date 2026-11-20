@@ -57,6 +57,8 @@ Jede Webseite kann wie eine HTML-Datei laufen: **Webseite hinzufügen** → Adre
 
 **Symbol ändern** (an der Karte): ein eigenes Bild (PNG, JPG, WebP, GIF, SVG, ICO …) oder das Symbol der Webseite (größtes aus `<link rel=icon>`, Apple-Touch-Icon, Web-App-Manifest oder `/favicon.ico`). Es wird als PNG und ICO in `userData/icons` gespeichert und erscheint auf der Kachel, als Fenster-Symbol und in der Desktop-Verknüpfung (eine vorhandene Verknüpfung wird mit aktualisiert).
 
+**Passwörter:** Nach dem Anmelden fragt Webline „Passwort speichern?“ (Speichern / Nicht jetzt / Nie für diese Seite). Später das Benutzer- oder Passwortfeld anklicken, eine kleine Auswahl der gespeicherten Konten erscheint. Ein Klick darauf (oder `↓` + `Enter`) füllt aus, ungefragt wird nichts in die Seite geschrieben. Gespeichert wird je Programm und Seite, verschlüsselt mit dem Schlüsselbund des Systems (Windows: DPAPI, macOS: Schlüsselbund, Linux: GNOME-Schlüsselbund/KWallet). Ohne sicheren Schlüsselbund speichert Webline keine Passwörter. Verwalten, löschen und abschalten unter Einstellungen → Passwörter.
+
 **`F6` – Adresse vorübergehend ändern:** öffnet über der Seite ein Eingabefeld mit der aktuellen Adresse. Die neue Adresse gilt nur in diesem Fenster; das Programm behält seine gespeicherte Adresse. Zurück (`Alt+←`, auf dem Mac `⌘[`, oder die Zurück-Taste der Maus) bzw. Schließen bringt dich wieder hin.
 
 Zur eigenen Seite zählen auch die Varianten mit und ohne `www` und Subdomains (z. B. `help.mert.win`). Ein Klick auf eine fremde Seite öffnet den Browser, das Fenster bleibt dort, wo man war – samt Scroll-Position.

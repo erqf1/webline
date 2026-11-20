@@ -567,6 +567,10 @@ function renderSettings() {
     $('#defaults-open').textContent = info.texts.menu;
   });
 
+  $('#autofill').checked = settings.autofill !== false;
+  $('#autofill').disabled = !settings.passwordsAvailable;
+  renderPasswords();
+
   const list = $('#shortcut-list');
   list.replaceChildren(
     ...I18N.SHORTCUTS.map((sc) => {
@@ -575,6 +579,35 @@ function renderSettings() {
       return el('div', { className: 'shortcut-row' }, el('span', { text: t(sc.label) }), button);
     })
   );
+}
+
+/** Gespeicherte Passwörter: Seite, Benutzer, Programm - löschen; "Nie speichern" wieder erlauben */
+async function renderPasswords() {
+  const box = $('#password-list');
+  const state = await api.passwords.get();
+  const rows = [];
+  const old = box.parentElement.querySelector('.pw-empty');
+  old?.remove();
+  if (!state.available) {
+    box.replaceChildren();
+    box.after(el('p', { className: 'set-hint note pw-empty', text: t('passwordsUnavailable') }));
+    return;
+  }
+  for (const e of state.entries) {
+    rows.push(el('div', { className: 'pw-row' },
+      el('span', { className: 'pw-name' }, el('b', { text: e.username || t('noUsername'), attrs: { title: e.username } }), el('small', { text: [e.site, e.program].filter(Boolean).join(' · ') })),
+      iconButton('trash', t('passwordsDelete'), async () => { await api.passwords.remove(e.id); renderPasswords(); }, 'danger')));
+  }
+  if (state.never.length) {
+    rows.push(el('div', { className: 'pw-head', text: t('passwordsNever') }));
+    for (const n of state.never) {
+      const allow = el('button', { className: 'btn', text: t('passwordsAllow'), attrs: { type: 'button' } });
+      allow.addEventListener('click', async () => { await api.passwords.allow(n.programId, n.site); renderPasswords(); });
+      rows.push(el('div', { className: 'pw-row' }, el('span', { className: 'pw-name' }, el('b', { text: n.site }), el('small', { text: n.program })), allow));
+    }
+  }
+  box.replaceChildren(...rows);
+  if (!state.entries.length) box.before(el('p', { className: 'set-hint pw-empty', text: t('passwordsNone') }));
 }
 
 /** Nächste Tastenkombination aufnehmen: Esc bricht ab, Rücktaste entfernt die Taste */
@@ -629,6 +662,8 @@ $('[data-close-settings]').addEventListener('click', () => settingsModal.close()
 $('#language').addEventListener('change', (event) => api.setSettings({ language: event.target.value }));
 $('#style').addEventListener('change', (event) => api.setSettings({ style: event.target.value }));
 $('#file-icons').addEventListener('change', (event) => api.setSettings({ fileIcons: event.target.value }));
+$('#autofill').addEventListener('change', (event) => api.setSettings({ autofill: event.target.checked }));
+api.passwords.onChange(() => settingsModal.open && renderPasswords());
 $('#shortcut-reset').addEventListener('click', () => {
   $('#shortcut-note').hidden = true;
   api.setSettings({ resetShortcuts: true });

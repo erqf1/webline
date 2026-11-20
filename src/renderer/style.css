@@ -440,7 +440,7 @@ kbd {
   background: var(--bg); color: var(--text); font: inherit; }
 .set-hint { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
 .set-hint.note { color: var(--warn); margin-top: 8px; }
-.shortcut-list { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+.shortcut-list { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; min-height: 150px; }
 .shortcut-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; }
 .key-btn { min-width: 150px; height: 32px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 12.5px; }
 .key-btn.recording { border-color: var(--accent); color: var(--accent); }
@@ -579,3 +579,16 @@ dialog:not([open]) { display: none !important; }
 .tile .tile-img { width: 100%; height: 100%; object-fit: contain; border-radius: 14px; }
 .pick-row { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
 .pick-row .btn { width: 100%; justify-content: flex-start; }
+
+/* Passwörter (Einstellungen) */
+.set-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.password-list { flex: none; display: flex; flex-direction: column; margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; max-height: 150px; overflow-y: auto; }
+.password-list:empty { display: none; }
+.pw-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 8px 7px 12px; }
+.pw-row + .pw-row { border-top: 1px solid var(--line); }
+.pw-row .pw-name { min-width: 0; display: flex; flex-direction: column; }
+.pw-row b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-row small { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-row .icon-btn { opacity: 1; }
+.pw-head { padding: 8px 12px 2px; color: var(--muted); font-size: 12px; }
+.pw-empty { margin: 10px 0 0 !important; }

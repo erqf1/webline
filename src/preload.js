@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld('launcher', {
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   onSettings: (callback) => ipcRenderer.on('settings:changed', (_event, state) => callback(state)),
 
+  passwords: {
+    get: () => ipcRenderer.invoke('passwords:get'),
+    remove: (id) => ipcRenderer.invoke('passwords:remove', id),
+    allow: (programId, site) => ipcRenderer.invoke('passwords:allow', programId, site),
+    onChange: (callback) => ipcRenderer.on('passwords:changed', () => callback()),
+  },
+
   defaults: {
     info: (lang) => ipcRenderer.invoke('defaults:info', lang),
     state: () => ipcRenderer.invoke('defaults:state'),
