@@ -2,79 +2,89 @@ ERGEBNIS CLOUD-SESSION webline-113
 
 1. Aufgabe und Status
    Webline 1.13.0: eigenes Symbol für Web-Programme, Fix für Scroll-Seiten, F6 = Adresse vorübergehend ändern,
-   Desktop-Symbol nur bei der Erst-Installation. Code fertig und lokal komplett getestet (41/41 Checks grün).
-   NICHT erledigt: Merge nach main und Tag v1.13.0. Der Bericht wurde vorzeitig angefordert, bevor die CI
-   komplett durch war. Es gibt noch keinen Release.
+   Desktop-Symbol nur bei der Erst-Installation. Auf Wunsch des Nutzers zusätzlich: Passwörter merken und
+   ausfüllen (Autofill).
+   Alles fertig, getestet und nach main gemergt. NICHT erledigt: Tag v1.13.0. Ein Tag-Push aus der
+   Cloud-Session wird vom Git-Proxy abgelehnt (HTTP 403), der Push auf main ging. Deshalb gibt es noch
+   keinen Release.
 
 2. Branch, Commits, PR, Tag, CI
-   - Branch: webline-symbol-f6 (auf dem Zwischenstand f4a6e4d aufgebaut)
-   - Commits: df20547 (1.13.0, alles), danach ein Commit mit Mac-Testfix und diesem Bericht
-   - PR: keiner angelegt. Tag: keiner.
-   - CI-Workflow "Test" (neu), Run 44598753209 auf df20547:
-     test (ubuntu) grün, test (windows) grün, test (macos) rot. Ursache war nur ein alter Check
-     ("Kein Adressleisten-Menü": isMenuBarVisible ist auf macOS immer true). Alle neuen Checks waren
-     auch auf dem Mac grün. Der Fix ist im Folge-Commit, das Ergebnis dazu steht noch aus.
-     Job "installer" (Windows, NSIS bauen und Desktop-Symbol durchspielen): lief noch, Ergebnis offen.
+   - Branch webline-symbol-f6, per Fast-Forward nach main gemergt (main = 62ae68f, dazu dieser Bericht)
+   - Commits: df20547 (Symbol, F6, Scroll, Installer, CI), f2cedc9 (Mac-Testfix), 62ae68f (Passwort-Autofill),
+     danach nur der Bericht
+   - PR: keiner (main direkt gemergt). Tag v1.13.0: NICHT gepusht (403).
+   - CI-Workflow "Test" Run 3 (44644754360) auf 62ae68f: alle 4 Jobs grün
+     (Test Windows/Linux/macOS + Installer-Durchlauf unter Windows).
+   - Release-Workflow lief noch nicht, weil der Tag fehlt.
 
 3. Was geändert wurde
-   - src/appicons.js (neu): Bild -> quadratisches 256er-PNG + ICO (9 Größen von 16 bis 256, als PNG im ICO)
-     in userData/icons/<id>-<zeit>.*. Ein neuer Name bei jeder Änderung umgeht den Symbol-Cache von Windows.
-     Dekodieren läuft in einem versteckten Sandbox-Fenster mit Canvas, deshalb gehen PNG/JPG/WebP/GIF/AVIF/
-     BMP/ICO/SVG auf allen Systemen. Symbol der Webseite: link rel=icon/apple-touch-icon (größtes),
-     Web-App-Manifest, /apple-touch-icon.png, /favicon.ico. mask-icon wird ignoriert.
-   - main.js Symbole: Kachel, Fenster-Symbol (Windows: ICO), Desktop-Verknüpfung (.lnk mit ICO, .desktop mit PNG).
-     Eine vorhandene Verknüpfung wird beim Symbolwechsel aktualisiert. Zurücksetzen und Entfernen löschen die Dateien.
-   - Scroll-Fix: Das Programmfenster wird vor loadURL in Arbeitsbereich-Größe angelegt und sofort maximiert,
-     nicht mehr erst bei ready-to-show. Die Seite sieht beim Laden also schon ihre endgültige Größe.
-   - Navigation: www/ohne www und Subdomains zählen als eigene Seite (siteOf, mit Ausnahmen für geteilte Hosts
-     wie github.io oder vercel.app). Bei einer fremden Seite öffnet sich der Browser, und das Fenster geht genau
-     einen Eintrag zurück (goToIndex, verzögert). Die Scroll-Position bleibt dabei erhalten. Vorher wurde die
-     Startadresse neu geladen und man landete wieder oben. Schleifenschutz: Leitet eine Seite innerhalb von
-     15 s erneut weg, bleibt sie im Fenster. Zoom und Smooth-Scrolling geprüft: Electron zoomt hier nicht
-     (kein Menü, zoom-changed unbehandelt), kein Handlungsbedarf.
-   - F6: Das Eingabefeld ist jetzt eine eigene WebContentsView (src/urlbar/) über der Seite statt Shadow-DOM in
-     der Seite. Grund: CSP, Trusted Types und Tasten-Handler fremder Seiten (z. B. Spiele) konnten das
-     Shadow-DOM stören, und die Seite hätte es auslesen können. Das Feld gilt nur im Fenster, die gespeicherte
-     Adresse bleibt. F6 ein zweites Mal oder Esc schließt es. Nur in Web-Programmen aktiv.
-     Zurück: Alt+← (macOS ⌘[, weil ⌥← in Textfeldern wortweise springt), Maus-Zurück/-Vor, Wischen auf dem Mac.
-     Beide Kürzel sind in den Einstellungen änderbar (i18n.defaultKey für eine eigene Mac-Vorgabe).
-     Bugfix dabei: programShortcut kannte editUrl/back nicht, F6 hätte also nie ausgelöst.
-     Pfeiltasten werden als ←/→ angezeigt, F6 steht in der Fußzeile.
-   - Installer: createDesktopShortcut ist jetzt false. Eigene Logik in build/installer.nsh:
-     customInit merkt sich vor dem Entfernen der alten Version, ob schon installiert ist und ob das Symbol da ist.
-     customInstall legt es nur bei der Erst-Installation an, oder stellt es wieder her, wenn das Uninstall
-     von 1.12 es gerade gelöscht hat. customUnInstall entfernt es nur beim echten Deinstallieren (nicht bei isUpdated).
-   - CI: .github/workflows/test.yml (neu). Release-Workflow liest Notizen aus release-notes/<tag>.md
-     (release-notes/v1.13.0.md, Deutsch, mit Link auf mert.win/html/changelog.html).
-   - README, Version 1.13.0, website-updates/changelog-1.13.0.html und 3 WebP-Bilder in website-updates/img/.
+   - Symbole (src/appicons.js, main.js): Bild auswählen, Symbol der Webseite (link rel=icon/apple-touch-icon/
+     Manifest/favicon.ico) oder Standard. Gespeichert als 256er-PNG + ICO (16-256 px) in userData/icons,
+     neuer Dateiname je Änderung wegen des Symbol-Caches von Windows. Erscheint auf Kachel, Fenster-Symbol
+     und Desktop-Verknüpfung, eine vorhandene Verknüpfung wird aktualisiert. Dekodieren im versteckten
+     Sandbox-Fenster mit Canvas, damit alle Formate auf allen Systemen gehen.
+   - Scroll-Fix: Programmfenster wird vor loadURL in Arbeitsbereich-Größe angelegt und sofort maximiert.
+     Die Seite misst beim Laden schon die Endgröße.
+   - Navigation: www/Subdomains zählen als eigene Seite (siteOf, mit Ausnahmen für geteilte Hosts wie
+     github.io). Bei einer fremden Seite öffnet sich der Browser, das Fenster geht genau einen Eintrag zurück
+     (verzögert, damit die Scroll-Position bleibt). Schleifenschutz bei Skript-Weiterleitungen.
+     Zoom und Smooth-Scrolling geprüft: kein Handlungsbedarf.
+   - F6: eigene WebContentsView (src/urlbar/) statt Shadow-DOM in der Seite (robust gegen CSP, Trusted Types
+     und Tasten-Handler der Seite). Gilt nur im Fenster, nur in Web-Programmen. Zurück mit Alt+←
+     (Mac: ⌘[), Maus-Zurück/-Vor, Wischen. Kürzel änderbar. Bugfix: programShortcut kannte editUrl/back nicht.
+   - Passwort-Autofill (neu):
+     - src/autofill/preload.js (isolierte Welt, nur Web-Programme): Beim Absenden (Formular, Enter,
+       Anmelde-Knopf) fragt Webline "Passwort speichern / aktualisieren?" mit Speichern / Nicht jetzt /
+       Nie für diese Seite.
+     - Klick ins Benutzer- oder Passwortfeld zeigt die gespeicherten Konten (geschlossenes Shadow-DOM).
+       Erst ein echter Klick oder ↓+Enter füllt aus (isTrusted), nie ungefragt.
+     - src/passwords.js: verschlüsselt mit Electron safeStorage (Windows DPAPI, macOS Schlüsselbund,
+       Linux libsecret/KWallet). Linux ohne Schlüsselbund (basic_text): es wird nichts gespeichert,
+       mit Hinweis. Gespeichert je Programm und Seite.
+     - Programm und Origin bestimmt der Hauptprozess (nur Hauptframe des eigenen Fensters).
+     - Einstellungen → Passwörter: Schalter "Speichern anbieten", Liste, Löschen, "Wieder erlauben".
+   - Installer: createDesktopShortcut false. Eigene Logik in build/installer.nsh: Symbol nur bei der
+     Erst-Installation, Update lässt es stehen, Umstieg von 1.12 stellt es wieder her, echtes
+     Deinstallieren entfernt es.
+   - CI: .github/workflows/test.yml (neu). Release-Workflow nimmt Notizen aus release-notes/v1.13.0.md
+     (Deutsch, Link auf https://mert.win/html/changelog.html).
+   - README, Version 1.13.0, website-updates/changelog-1.13.0.html + 5 WebP-Bilder in website-updates/img/.
 
 4. Getestet
-   - Lokal (Linux/Xvfb, unsichtbar): tools/test-web.js mit 41 Checks, alle grün. Abgedeckt: Symbol per
-     Mini-Server (link rel=icon, favicon.ico als ICO), SVG-Datei-Symbol, kaputtes Bild, Abbrechen,
-     Zurücksetzen, Aufräumen, ICO gültig, .desktop zeigt das neue Symbol, Kachel, Zurück per Taste und Maus,
-     Weiterleitung webline.test -> www.webline.test bleibt im Fenster, innerHeight beim ersten Laden gleich
-     der Endgröße ohne resize, fremder Link geht in den Browser mit gleicher Scroll-Position,
-     F6 (öffnen, Esc, fremde Adresse, Links darauf, gespeicherte Adresse unverändert, zweimal zurück),
-     Schleifenschutz, Start per Adresse.
-   - CI: Windows grün (inkl. Prüfung .lnk zeigt ICO), Linux grün, macOS siehe oben.
-   - NICHT getestet: echtes sichtbares Maximieren unter Windows/macOS (im Test abgeschaltet, damit keine
-     Fenster sichtbar werden), echter Dateidialog, Fenster-Symbol in Taskleiste/Alt+Tab, Auto-Updater-Lauf
-     von 1.12 auf 1.13 in echt. Der Installer-Job simuliert das mit --updated, Ergebnis offen.
-     Lokaler NSIS-Build wurde nicht gemacht (kein Wine), nur in der CI.
+   - tools/test-web.js unsichtbar, lokal und in der CI auf Windows/Linux/macOS grün. Abgedeckt:
+     - Symbol: per Mini-Server (link rel=icon, favicon.ico als ICO), SVG-Datei, kaputtes Bild, Abbrechen,
+       Zurücksetzen, Aufräumen, ICO gültig, Verknüpfung zeigt das ICO (Windows) bzw. PNG (.desktop), Kachel.
+     - Navigation: Zurück per Taste und Maus, Weiterleitung ohne www -> www bleibt im Fenster,
+       innerHeight beim ersten Laden = Endgröße ohne resize, fremder Link geht in den Browser und die
+       Scroll-Position bleibt, Schleifenschutz.
+     - F6: öffnen, Esc, fremde Adresse, Links darauf, gespeicherte Adresse unverändert, zurück.
+     - Passwörter: Speichern, Datei ohne Klartext, Ausfüllen per Tastatur und Maus, keine erneute Frage,
+       Aktualisieren, andere Seite bekommt nichts, "Nie", Abschalten, Löschen, künstliche Tastendrücke der
+       Seite füllen nichts aus, Seite sieht kein require/ipc.
+   - Installer-Job (Windows CI): Erst-Installation, Update, Setup von Hand, gelöschtes Symbol bleibt weg,
+     Deinstallieren, Neu-Installation, Umstieg von 1.12 (von Hand und per --updated): grün.
+   - NICHT getestet:
+     - echte Schlüsselbund-Verschlüsselung: Im Test ersetzt, weil Linux-CI keinen Schlüsselbund hat und
+       macOS nachfragen würde. Lokal meldet Linux/Xvfb korrekt "nicht verfügbar".
+     - sichtbares Maximieren unter Windows/macOS, echter Dateidialog, Taskleisten-Symbol,
+       echter Auto-Update-Lauf.
+     - Autofill in iframes und bei mehrstufigen Logins (Benutzer und Passwort auf getrennten Seiten):
+       nicht unterstützt.
 
 5. Offene Punkte / was der Nutzer tun muss
-   - Ergebnis der CI abwarten: Test-Run auf dem neuesten Commit (macOS sollte jetzt grün sein) und Job
-     "installer". Wenn der rot ist: Log ansehen. Kandidaten sind die NSIS-Syntax in build/installer.nsh oder
-     das Timing im PowerShell-Skript.
-   - Danach mergen und taggen (siehe 6). Dann prüfen, ob alle Pakete im Release v1.13.0 liegen:
-     Setup .exe, portable .exe, .deb, .pacman, .tar.gz, 2x Mac-zip und latest*.yml.
+   - Tag setzen (startet den Release-Workflow):
+       git fetch origin && git tag v1.13.0 62ae68f && git push origin v1.13.0
+     Danach prüfen, ob im Release liegen: Setup .exe, portable .exe, .deb, .pacman, .tar.gz, 2x Mac-zip,
+     latest*.yml.
    - Website: website-updates/changelog-1.13.0.html in mert.win/html/changelog.html einfügen und die Bilder
-     aus website-updates/img/ hochladen (Pfade ggf. anpassen).
-   - Hinweis: Beim Umstieg von 1.12 per Setup von Hand löscht das alte 1.12-Uninstall das Symbol, 1.13 legt es
-     neu an. Es kann deshalb EINMAL an eine andere Stelle springen. Ab 1.13 passiert das nicht mehr.
+     aus website-updates/img/ hochladen.
+   - Hinweis: Beim Umstieg von 1.12 per Setup von Hand springt das Desktop-Symbol EINMAL (das alte
+     Uninstall löscht es, 1.13 legt es neu an). Ab 1.13 passiert das nicht mehr.
+   - Hinweis: Unter Linux ohne GNOME-Schlüsselbund/KWallet bietet Webline das Speichern von Passwörtern
+     nicht an.
 
 6. Nächste Schritte für die Haupt-Session
-   - CI-Runs für Branch webline-symbol-f6 prüfen (Workflow "Test", alle 4 Jobs grün).
-   - Dann: git checkout main && git merge --ff-only webline-symbol-f6 && git push origin main
-     und: git tag v1.13.0 && git push origin v1.13.0. Das startet "Build & Release", danach die Release-Assets prüfen.
-   - Bei rotem Installer-Job: Fehler beheben, erneut pushen, erst danach taggen.
+   - Tag v1.13.0 auf 62ae68f pushen (siehe 5).
+   - Release-Workflow "Build & Release" beobachten (3 Builds + Veröffentlichen), Assets prüfen.
+   - Auto-Update einer 1.12-Installation auf 1.13 einmal echt ausprobieren (Desktop-Symbol bleibt,
+     wo es ist).
